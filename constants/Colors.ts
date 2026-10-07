@@ -1,19 +1,32 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+import { appTheme } from './theme';
 
 export default {
   light: {
-    text: '#000',
-    background: '#fff',
-    tint: tintColorLight,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorLight,
+    text: appTheme.light.foreground,
+    background: appTheme.light.background,
+    tint: appTheme.light.primary,
+    tabIconDefault: appTheme.light.tabIconDefault,
+    tabIconSelected: appTheme.light.tabIconSelected,
+    card: appTheme.light.card,
+    border: appTheme.light.border,
+    muted: appTheme.light.muted,
+    mutedText: appTheme.light.mutedForeground,
+    success: appTheme.light.success,
+    warning: appTheme.light.warning,
+    danger: appTheme.light.danger,
   },
   dark: {
-    text: '#fff',
-    background: '#000',
-    tint: tintColorDark,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
+    text: appTheme.dark.foreground,
+    background: appTheme.dark.background,
+    tint: appTheme.dark.primary,
+    tabIconDefault: appTheme.dark.tabIconDefault,
+    tabIconSelected: appTheme.dark.tabIconSelected,
+    card: appTheme.dark.card,
+    border: appTheme.dark.border,
+    muted: appTheme.dark.muted,
+    mutedText: appTheme.dark.mutedForeground,
+    success: appTheme.dark.success,
+    warning: appTheme.dark.warning,
+    danger: appTheme.dark.danger,
   },
 };

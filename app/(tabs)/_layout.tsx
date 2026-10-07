@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -13,23 +13,23 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
+        tabBarInactiveTintColor: Colors[colorScheme].tabIconDefault,
         headerShown: useClientOnlyValue(false, true),
-      }}>
+        tabBarStyle: {
+          backgroundColor: Colors[colorScheme].background,
+          borderTopColor: Colors[colorScheme].border,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
+          title: 'Login',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
+              name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
               tintColor={color}
-              size={28}
+              size={24}
             />
           ),
           headerRight: () => (
@@ -51,16 +51,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
+          title: 'Courses',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
+              name={{ ios: 'book.fill', android: 'book', web: 'book' }}
               tintColor={color}
-              size={28}
+              size={24}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }}
+              tintColor={color}
+              size={24}
             />
           ),
         }}

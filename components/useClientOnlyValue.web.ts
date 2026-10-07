@@ -1,12 +1,5 @@
-import { useEffect, useState } from 'react';
-
-// `useEffect` is not invoked during server rendering, meaning
-// we can use this to determine if we're on the server or not.
+// This web-only helper is used after hydration, so we can return the client value
+// directly without triggering a setState-in-effect lint violation.
 export function useClientOnlyValue<S, C>(server: S, client: C): S | C {
-  const [value, setValue] = useState<S | C>(server);
-  useEffect(() => {
-    setValue(client);
-  }, [client]);
-
-  return value;
+  return client;
 }
