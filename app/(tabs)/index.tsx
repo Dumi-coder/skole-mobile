@@ -1,205 +1,209 @@
-import * as AuthSession from "expo-auth-session";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
-import { Alert, Pressable, StyleSheet, TextInput } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet } from "react-native";
 
 import { Text, View } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
-import { signInWithEmail, signInWithGoogle } from "@/services/api";
 
-WebBrowser.maybeCompleteAuthSession();
+const categories = ["Teacher", "Feed", "Papers"] as const;
+type Category = (typeof categories)[number];
 
-export default function LoginScreen() {
+const teacherHighlights = [
+  {
+    title: "Dr. Emma Cole",
+    subtitle: "Data Science mentor",
+    meta: "4.9 rating · 12 live classes",
+    tag: "Top",
+  },
+  {
+    title: "Prof. Nolan Reed",
+    subtitle: "Research writing coach",
+    meta: "4.8 rating · 8 office hours",
+    tag: "Popular",
+  },
+  {
+    title: "Aisha Morgan",
+    subtitle: "Career readiness expert",
+    meta: "4.7 rating · 6 workshops",
+    tag: "New",
+  },
+];
+
+const feedHighlights = [
+  {
+    title: "Classroom challenge",
+    subtitle: "Community review sprint is live this week.",
+    meta: "6.3k learners",
+    tag: "Trending",
+  },
+  {
+    title: "Mentor AMA",
+    subtitle: "Ask your questions about internships and projects.",
+    meta: "Live now",
+    tag: "Live",
+  },
+  {
+    title: "Peer wins",
+    subtitle: "See how students are building standout portfolios.",
+    meta: "Fresh updates",
+    tag: "Daily",
+  },
+];
+
+const paperHighlights = [
+  {
+    title: "AI for collaborative learning",
+    subtitle: "New frameworks for research and peer review.",
+    meta: "New paper",
+    tag: "New",
+  },
+  {
+    title: "Practical neuroscience",
+    subtitle: "Evidence-based field notes for applied study.",
+    meta: "Most read",
+    tag: "Popular",
+  },
+  {
+    title: "Designing better feedback loops",
+    subtitle: "How feedback systems improve retention and clarity.",
+    meta: "Curated",
+    tag: "Curated",
+  },
+];
+
+export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme];
-  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: "mobile",
-    path: "/",
-  });
+  const [activeCategory, setActiveCategory] = useState<Category>("Teacher");
 
-  const [request, , promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: googleClientId,
-    redirectUri,
-    scopes: ["openid", "profile", "email"],
-  });
-
-  const handleContinue = async () => {
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedEmail || !trimmedPassword) {
-      setError("Email and password are required.");
-      return;
+  const listData = useMemo(() => {
+    switch (activeCategory) {
+      case "Feed":
+        return feedHighlights;
+      case "Papers":
+        return paperHighlights;
+      default:
+        return teacherHighlights;
     }
-
-    setError(null);
-    setSubmitting(true);
-
-    try {
-      await signInWithEmail(trimmedEmail, trimmedPassword);
-      Alert.alert(
-        "Signed in",
-        "Your session is now linked to the shared Fastify backend.",
-      );
-    } catch (caughtError) {
-      const message =
-        caughtError instanceof Error ? caughtError.message : "Sign in failed.";
-      setError(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    if (!googleClientId) {
-      setError(
-        "Google sign-in is not configured. Add EXPO_PUBLIC_GOOGLE_CLIENT_ID to your Expo env file.",
-      );
-      return;
-    }
-
-    if (!request) {
-      setError(
-        "Google auth is still initializing. Please try again in a moment.",
-      );
-      return;
-    }
-
-    setError(null);
-    setGoogleSubmitting(true);
-
-    try {
-      const result = await promptAsync();
-      if (result.type !== "success" || !result.params?.id_token) {
-        setError("Google sign-in was cancelled or failed.");
-        return;
-      }
-
-      await signInWithGoogle(result.params.id_token);
-      Alert.alert(
-        "Signed in with Google",
-        "Your Google session is now linked to the shared Fastify backend.",
-      );
-    } catch (caughtError) {
-      const message =
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Google sign-in failed.";
-      setError(message);
-    } finally {
-      setGoogleSubmitting(false);
-    }
-  };
+  }, [activeCategory]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Skole mobile sync</Text>
-        <Text style={styles.title}>Welcome</Text>
-        <Text style={styles.subtitle}>Sign in to continue.</Text>
-      </View>
-
-      <View
-        style={[
-          styles.formCard,
-          { backgroundColor: palette.card, borderColor: palette.border },
-        ]}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
       >
-        <Pressable
-          onPress={handleGoogleLogin}
-          disabled={googleSubmitting}
-          style={({ pressed }) => [
-            styles.googleButton,
-            {
-              backgroundColor: "#ffffff",
-              borderColor: palette.border,
-              opacity: pressed || googleSubmitting ? 0.9 : 1,
-            },
-          ]}
-        >
-          <Text style={styles.googleBadge}>G</Text>
-          <Text style={[styles.googleButtonText, { color: palette.text }]}>
-            {googleSubmitting
-              ? "Connecting to Google..."
-              : "Continue with Google"}
-          </Text>
-        </Pressable>
-
-        <View style={styles.dividerRow}>
-          <View
-            style={[styles.dividerLine, { backgroundColor: palette.border }]}
-          />
-          <Text style={[styles.dividerText, { color: palette.mutedText }]}>
-            or
-          </Text>
-          <View
-            style={[styles.dividerLine, { backgroundColor: palette.border }]}
-          />
+        <View style={styles.headerRow}>
+          <Text style={styles.brand}>sKole</Text>
+          <Pressable
+            style={[
+              styles.filterButton,
+              { backgroundColor: palette.muted, borderColor: palette.border },
+            ]}
+          >
+            <Text style={[styles.filterText, { color: palette.text }]}>
+              Today
+            </Text>
+          </Pressable>
         </View>
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="Enter your email"
-          placeholderTextColor={palette.mutedText}
+        <View
           style={[
-            styles.input,
-            {
-              backgroundColor: palette.muted,
-              color: palette.text,
-              borderColor: palette.border,
-            },
-          ]}
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter your password"
-          placeholderTextColor={palette.mutedText}
-          secureTextEntry
-          style={[
-            styles.input,
-            {
-              backgroundColor: palette.muted,
-              color: palette.text,
-              borderColor: palette.border,
-            },
-          ]}
-        />
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Pressable
-          onPress={handleContinue}
-          disabled={submitting}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            {
-              backgroundColor: palette.tint,
-              opacity: pressed || submitting ? 0.9 : 1,
-            },
+            styles.segmentedControl,
+            { backgroundColor: palette.muted, borderColor: palette.border },
           ]}
         >
-          <Text
-            style={[styles.primaryButtonText, { color: palette.background }]}
-          >
-            {submitting ? "Signing in..." : "Continue"}
+          {categories.map((category) => {
+            const isActive = activeCategory === category;
+
+            return (
+              <Pressable
+                key={category}
+                onPress={() => setActiveCategory(category)}
+                style={[
+                  styles.segment,
+                  isActive
+                    ? {
+                        backgroundColor: palette.card,
+                        borderColor: palette.border,
+                        shadowColor: "#000000",
+                        shadowOpacity: 0.08,
+                        shadowRadius: 8,
+                      }
+                    : { backgroundColor: "transparent" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    { color: isActive ? palette.text : palette.mutedText },
+                  ]}
+                >
+                  {category}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View
+          style={[
+            styles.heroCard,
+            { backgroundColor: palette.card, borderColor: palette.border },
+          ]}
+        >
+          <Text style={[styles.heroLabel, { color: palette.mutedText }]}>
+            Featured
           </Text>
-        </Pressable>
-      </View>
+          <Text style={styles.heroTitle}>Design a smarter study rhythm.</Text>
+          <Text style={[styles.heroDescription, { color: palette.mutedText }]}>
+            Discover sessions, conversations, and research tailored to your
+            learning path.
+          </Text>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{activeCategory}</Text>
+          <Text style={[styles.sectionLink, { color: palette.mutedText }]}>
+            View all
+          </Text>
+        </View>
+
+        {listData.map((item) => (
+          <Pressable
+            key={item.title}
+            style={[
+              styles.listCard,
+              { backgroundColor: palette.card, borderColor: palette.border },
+            ]}
+          >
+            <View style={[styles.avatar, { backgroundColor: palette.muted }]}>
+              <Text style={[styles.avatarText, { color: palette.text }]}>
+                {item.title.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+
+            <View style={styles.listContent}>
+              <Text style={styles.listTitle}>{item.title}</Text>
+              <Text style={[styles.listSubtitle, { color: palette.mutedText }]}>
+                {item.subtitle}
+              </Text>
+              <Text style={[styles.listMeta, { color: palette.mutedText }]}>
+                {item.meta}
+              </Text>
+            </View>
+
+            <Text
+              style={[
+                styles.pill,
+                { backgroundColor: palette.muted, color: palette.text },
+              ]}
+            >
+              {item.tag}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -207,110 +211,151 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 32,
-    paddingBottom: 24,
+    backgroundColor: "transparent",
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 28,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  brand: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  filterButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 16,
+  },
+  segment: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    marginHorizontal: 2,
+  },
+  segmentText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
   heroCard: {
-    marginBottom: 16,
-    padding: 22,
-    borderRadius: 18,
-    backgroundColor: "#0f1419",
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 20,
   },
-  eyebrow: {
-    fontSize: 12,
+  heroLabel: {
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "#9aa4ae",
     marginBottom: 8,
   },
-  title: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: "700",
-    color: "#ffffff",
+  heroTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    marginBottom: 8,
   },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#dfe5eb",
+  heroDescription: {
+    fontSize: 13,
+    lineHeight: 18,
   },
-  formCard: {
-    padding: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  googleButton: {
+  sectionHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+  },
+  sectionLink: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  listCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 14,
-    marginBottom: 12,
+    marginRight: 10,
   },
-  googleBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    textAlign: "center",
-    lineHeight: 22,
-    fontWeight: "700",
-    backgroundColor: "#0f1419",
-    color: "#ffffff",
-    fontSize: 12,
-  },
-  googleButtonText: {
-    fontSize: 15,
+  avatarText: {
+    fontSize: 16,
     fontWeight: "700",
   },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  dividerLine: {
-    height: 1,
+  listContent: {
     flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  label: {
-    marginTop: 12,
-    marginBottom: 8,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  listTitle: {
     fontSize: 15,
-    marginBottom: 10,
-  },
-  primaryButton: {
-    marginTop: 12,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "700",
+    marginBottom: 2,
+    flexShrink: 1,
   },
-  errorText: {
-    color: "#d04545",
-    fontSize: 13,
+  listSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+    flexShrink: 1,
+  },
+  listMeta: {
+    marginTop: 4,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "600",
-    marginBottom: 8,
+    flexShrink: 1,
+  },
+  pill: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 999,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "700",
+    marginLeft: 6,
+    alignSelf: "center",
+    textAlign: "center",
   },
 });
