@@ -1,10 +1,8 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from "expo-router";
+import { SymbolView } from "expo-symbols";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -12,51 +10,62 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: Colors[colorScheme].tint,
         tabBarInactiveTintColor: Colors[colorScheme].tabIconDefault,
-        headerShown: useClientOnlyValue(false, true),
         tabBarStyle: {
           backgroundColor: Colors[colorScheme].background,
           borderTopColor: Colors[colorScheme].border,
+          borderTopWidth: 1,
+          height: 76,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Login',
+          title: "Home",
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
+              name={{ ios: "house.fill", android: "house", web: "house" }}
               tintColor={color}
-              size={24}
+              size={22}
             />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="messages"
         options={{
-          title: 'Courses',
+          title: "Message",
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{ ios: 'book.fill', android: 'book', web: 'book' }}
+              name={{
+                ios: "bubble.left.fill",
+                android: "message",
+                web: "message",
+              }}
               tintColor={color}
-              size={24}
+              size={22}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="voice-room"
+        options={{
+          title: "Voice Room",
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: "mic.fill", android: "mic", web: "mic" }}
+              tintColor={color}
+              size={22}
             />
           ),
         }}
@@ -64,12 +73,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: "My Profile",
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }}
+              name={{ ios: "person.fill", android: "person", web: "person" }}
               tintColor={color}
-              size={24}
+              size={22}
             />
           ),
         }}
