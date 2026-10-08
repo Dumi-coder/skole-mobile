@@ -9,7 +9,7 @@ export type AppSession = {
   userId: string;
 };
 
-const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 
 export const hasApiConfig = Boolean(apiBaseUrl);
 export const apiClient = createSkoleApiClient({ baseUrl: apiBaseUrl });
