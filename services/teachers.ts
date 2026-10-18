@@ -3,6 +3,7 @@ import type {
     TeacherFilters,
     TeachersResponse,
 } from "@/types/teacher";
+import { gradesMatch } from "@/utils/gradeUtils";
 
 const teacherData: Teacher[] = [
   {
@@ -125,7 +126,7 @@ export async function getTeachers(
     const matchesGrade =
       !filters.grade ||
       teacher.grades.some(
-        (grade) => grade.toLowerCase() === filters.grade?.toLowerCase(),
+        (grade) => gradesMatch(grade, filters.grade!),
       );
     const matchesSubject =
       !filters.subject ||

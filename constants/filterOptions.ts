@@ -1,12 +1,34 @@
-export const gradeOptions = ["A/L", "O/L", "Grade 6-9"] as const;
+export const gradeOptions = ["AL", "OL", "6-9", "Other"] as const;
 
-export const mediumOptions = ["English", "Sinhala", "Tamil"] as const;
+export const mediumOptions = ["Sinhala", "English", "Tamil"] as const;
 
 export const locationOptions = [
   "Colombo",
+  "Gampaha",
   "Kandy",
+  "Kalutara",
+  "Kurunegala",
   "Galle",
   "Matara",
+  "Ratnapura",
+  "Badulla",
+  "Anuradhapura",
+  "Kegalle",
+  "Puttalam",
+  "Jaffna",
+  "Kilinochchi",
+  "Mannar",
+  "Mullaitivu",
+  "Polonnaruwa",
+  "Vavuniya",
+  "Ampara",
+  "Hambantota",
+  "Matale",
+  "Nuwara Eliya",
+  "Trincomalee",
+  "Batticaloa",
+  "Monaragala",
+  "Other",
 ] as const;
 
 export type SubjectSection = {
@@ -15,28 +37,43 @@ export type SubjectSection = {
 };
 
 export const subjectSectionsByGrade: Record<string, SubjectSection[]> = {
-  "A/L": [
+  AL: [
     {
       title: "Science stream",
-      subjects: ["Maths", "Science", "ICT"],
+      subjects: ["Maths", "Physics", "Chemistry", "Bio", "ICT"],
     },
     {
-      title: "Arts stream",
-      subjects: ["English", "History"],
+      title: "Commerce stream",
+      subjects: ["Econ", "Account", "Business"],
+    },
+    {
+      title: "Arts & Technology",
+      subjects: ["Art", "Tech", "Other"],
     },
   ],
-  "O/L": [
+  OL: [
     {
       title: "Core subjects",
-      subjects: ["Maths", "Science", "English", "History", "ICT"],
+      subjects: [
+        "Maths",
+        "Science",
+        "English",
+        "ICT",
+        "Commerce",
+        "Sinhala",
+        "History",
+        "Tamil",
+        "Other",
+      ],
     },
   ],
-  "Grade 6-9": [
+  "6-9": [
     {
       title: "Middle school",
-      subjects: ["Maths", "Science", "English", "History", "ICT"],
+      subjects: ["Maths", "Science", "English", "Other"],
     },
   ],
+  Other: [],
 };
 
 export function getSubjectSections(grade?: string): SubjectSection[] {

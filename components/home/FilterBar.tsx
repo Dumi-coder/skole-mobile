@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -12,13 +12,13 @@ import {
 import { Text } from "@/components/Themed";
 import { Input } from "@/components/ui/Input";
 import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
 import {
   getSubjectSections,
   gradeOptions,
   locationOptions,
   mediumOptions,
 } from "@/constants/filterOptions";
-import Colors from "@/constants/Colors";
 import { useUIStore } from "@/store/uiStore";
 
 type FilterKey = "grade" | "subject" | "medium" | "location";
@@ -32,6 +32,13 @@ type SheetState = {
   title: string;
 } | null;
 
+type AnchorLayout = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 const labels: Record<FilterKey, string> = {
   grade: "Grade",
   subject: "Subject",
@@ -39,10 +46,13 @@ const labels: Record<FilterKey, string> = {
   location: "Location",
 };
 
+const DROPDOWN_GAP = 6;
+const SCREEN_EDGE_PADDING = 12;
+
 export function FilterBar({ showLocation = false }: FilterBarProps) {
   const scheme = useColorScheme();
   const palette = Colors[scheme];
-  const { height } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const filters = useUIStore((state) => state.filters);
   const searchOpen = useUIStore((state) => state.searchOpen);
   const setFilters = useUIStore((state) => state.setFilters);
@@ -51,6 +61,8 @@ export function FilterBar({ showLocation = false }: FilterBarProps) {
 
   const [sheet, setSheet] = useState<SheetState>(null);
   const [searchDraft, setSearchDraft] = useState(filters.search ?? "");
+  const [anchor, setAnchor] = useState<AnchorLayout | null>(null);
+  const pillRefs = useRef<Partial<Record<FilterKey, View | null>>>({});
 
   const [prevSearch, setPrevSearch] = useState(filters.search);
   if (prevSearch !== filters.search) {
@@ -68,25 +80,40 @@ export function FilterBar({ showLocation = false }: FilterBarProps) {
 
   const hasActiveFilters = Boolean(
     filters.grade ||
-      filters.subject ||
-      filters.medium ||
-      filters.location ||
-      filters.search,
+    filters.subject ||
+    filters.medium ||
+    filters.location ||
+    filters.search,
   );
+
+  const closeDropdown = () => {
+    setSheet(null);
+    setAnchor(null);
+  };
 
   const openSheet = (key: FilterKey) => {
     if (key === "subject" && !filters.grade) return;
-    setSheet({ key, title: labels[key] });
+    const ref = pillRefs.current[key];
+    if (ref) {
+      ref.measureInWindow((x, y, width, height) => {
+        setAnchor({ x, y, width, height });
+        setSheet({ key, title: labels[key] });
+      });
+    }
   };
 
   const renderPill = (key: FilterKey, disabled = false) => {
     const value = filters[key];
     const isActive = Boolean(value);
+    const isOpen = sheet?.key === key;
     const label = value ?? labels[key];
 
     return (
       <Pressable
         key={key}
+        ref={(ref: View | null) => {
+          pillRefs.current[key] = ref;
+        }}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={`Filter by ${labels[key]}`}
@@ -96,7 +123,11 @@ export function FilterBar({ showLocation = false }: FilterBarProps) {
           disabled && styles.pillDisabled,
           {
             backgroundColor: isActive ? palette.foreground : palette.card,
-            borderColor: isActive ? "transparent" : palette.border,
+            borderColor: isActive
+              ? "transparent"
+              : isOpen
+                ? palette.hoverBorder
+                : palette.border,
           },
         ]}
       >
@@ -143,13 +174,72 @@ export function FilterBar({ showLocation = false }: FilterBarProps) {
     } else {
       setFilters({ [key]: value });
     }
-    setSheet(null);
+    closeDropdown();
   };
 
   const clearFilterKey = (key: FilterKey) => {
     setFilters({ [key]: undefined });
-    setSheet(null);
+    closeDropdown();
   };
+
+  /* ── Dropdown position calculation ──────────────── */
+  const getDropdownPosition = () => {
+    if (!anchor) return {};
+
+    const dropdownWidth = sheet?.key === "subject" ? 260 : 220;
+    const top = anchor.y + anchor.height + DROPDOWN_GAP;
+    const availableBelow = screenHeight - top - SCREEN_EDGE_PADDING;
+
+    let left = anchor.x;
+    if (left + dropdownWidth > screenWidth - SCREEN_EDGE_PADDING) {
+      left = screenWidth - dropdownWidth - SCREEN_EDGE_PADDING;
+    }
+    if (left < SCREEN_EDGE_PADDING) left = SCREEN_EDGE_PADDING;
+
+    return {
+      position: "absolute" as const,
+      top,
+      left,
+      width: dropdownWidth,
+      maxHeight: Math.min(availableBelow, screenHeight * 0.5),
+    };
+  };
+
+  /* ── Render a single dropdown menu item ─────────── */
+  const renderMenuItem = (
+    label: string,
+    isSelected: boolean,
+    onPress: () => void,
+    muted = false,
+  ) => (
+    <Pressable
+      key={label}
+      onPress={onPress}
+      accessibilityRole="menuitem"
+      style={({ pressed }) => [
+        styles.menuItem,
+        isSelected && { backgroundColor: palette.subtleBg },
+        pressed && { opacity: 0.65 },
+      ]}
+    >
+      <Text
+        style={[
+          styles.menuItemText,
+          { color: muted ? palette.muted : palette.text },
+          isSelected && styles.menuItemTextSelected,
+        ]}
+      >
+        {label}
+      </Text>
+      {isSelected ? (
+        <SymbolView
+          name={{ ios: "checkmark", android: "check", web: "check" }}
+          tintColor={palette.foreground}
+          size={14}
+        />
+      ) : null}
+    </Pressable>
+  );
 
   return (
     <View>
@@ -215,83 +305,102 @@ export function FilterBar({ showLocation = false }: FilterBarProps) {
         </View>
       ) : null}
 
+      {/* ── Floating dropdown popover ─────────────── */}
       <Modal
         visible={sheet !== null}
         transparent
-        animationType="slide"
-        onRequestClose={() => setSheet(null)}
+        animationType="fade"
+        onRequestClose={closeDropdown}
+        statusBarTranslucent
       >
-        <Pressable style={styles.backdrop} onPress={() => setSheet(null)} />
+        <Pressable
+          style={styles.backdrop}
+          onPress={closeDropdown}
+          accessibilityRole="button"
+          accessibilityLabel="Close filter picker"
+        />
         <View
           style={[
-            styles.sheet,
+            styles.dropdown,
             {
               backgroundColor: palette.background,
               borderColor: palette.border,
-              maxHeight: height * 0.5,
             },
+            getDropdownPosition(),
           ]}
         >
-          <View style={[styles.sheetHeader, { borderBottomColor: palette.border }]}>
-            <Text style={styles.sheetTitle}>{sheet?.title}</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close filter picker"
-              onPress={() => setSheet(null)}
-              hitSlop={8}
-            >
-              <SymbolView
-                name={{ ios: "xmark", android: "close", web: "close" }}
-                tintColor={palette.text}
-                size={18}
-              />
-            </Pressable>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.sheetContent}>
+          <ScrollView
+            contentContainerStyle={styles.dropdownContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
             {sheet?.key === "subject" ? (
-              getSubjectSections(filters.grade).map((section) => (
-                <View key={section.title} style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: palette.muted }]}>
-                    {section.title}
-                  </Text>
-                  {section.subjects.map((subject) => (
-                    <Pressable
-                      key={subject}
-                      onPress={() => selectValue("subject", subject)}
-                      style={[
-                        styles.sheetOption,
-                        { borderColor: palette.border },
-                      ]}
-                    >
-                      <Text style={styles.optionText}>{subject}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ))
+              <>
+                {/* Clear selection */}
+                {filters.subject
+                  ? renderMenuItem(
+                      "Any subject",
+                      false,
+                      () => clearFilterKey("subject"),
+                      true,
+                    )
+                  : null}
+
+                {getSubjectSections(filters.grade).map((section, idx) => (
+                  <View key={section.title}>
+                    {(idx > 0 || filters.subject) && (
+                      <View
+                        style={[
+                          styles.separator,
+                          { backgroundColor: palette.border },
+                        ]}
+                      />
+                    )}
+                    <View style={styles.sectionHeader}>
+                      <Text
+                        style={[styles.sectionTitle, { color: palette.muted }]}
+                      >
+                        {section.title}
+                      </Text>
+                    </View>
+                    {section.subjects.map((subject) =>
+                      renderMenuItem(
+                        subject,
+                        filters.subject === subject,
+                        () => selectValue("subject", subject),
+                      ),
+                    )}
+                  </View>
+                ))}
+              </>
             ) : (
               <>
-                {sheet ? (
-                  <Pressable
-                    onPress={() => clearFilterKey(sheet.key)}
-                    style={[styles.sheetOption, { borderColor: palette.border }]}
-                  >
-                    <Text style={[styles.optionText, { color: palette.muted }]}>
-                      Any {labels[sheet.key].toLowerCase()}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {sheetOptions().map((option) => (
-                  <Pressable
-                    key={option.label}
-                    onPress={() =>
-                      sheet && selectValue(sheet.key, option.value!)
-                    }
-                    style={[styles.sheetOption, { borderColor: palette.border }]}
-                  >
-                    <Text style={styles.optionText}>{option.label}</Text>
-                  </Pressable>
-                ))}
+                {/* "Any" clear option */}
+                {sheet && filters[sheet.key]
+                  ? renderMenuItem(
+                      `Any ${labels[sheet.key].toLowerCase()}`,
+                      false,
+                      () => clearFilterKey(sheet.key),
+                      true,
+                    )
+                  : null}
+
+                {sheet && filters[sheet.key] && sheetOptions().length > 0 && (
+                  <View
+                    style={[
+                      styles.separator,
+                      { backgroundColor: palette.border },
+                    ]}
+                  />
+                )}
+
+                {sheetOptions().map((option) =>
+                  renderMenuItem(
+                    option.label,
+                    sheet ? filters[sheet.key] === option.value : false,
+                    () => sheet && selectValue(sheet.key, option.value!),
+                  ),
+                )}
               </>
             )}
           </ScrollView>
@@ -336,51 +445,59 @@ const styles = StyleSheet.create({
   searchWrap: {
     marginBottom: 8,
   },
+
+  /* ── Floating dropdown ──────────────────────────── */
   backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "transparent",
   },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  dropdown: {
+    borderRadius: 14,
     borderWidth: 1,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 16,
   },
-  sheetHeader: {
+  dropdownContent: {
+    paddingVertical: 6,
+  },
+
+  /* ── Menu items ─────────────────────────────────── */
+  menuItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
+    paddingVertical: 11,
+    gap: 12,
   },
-  sheetTitle: {
-    fontSize: 17,
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: "500",
+    flexShrink: 1,
+  },
+  menuItemTextSelected: {
     fontWeight: "700",
   },
-  sheetContent: {
-    padding: 16,
-    gap: 8,
-    paddingBottom: 32,
-  },
-  section: {
-    marginBottom: 12,
-    gap: 8,
+
+  /* ── Section headers & separators ───────────────── */
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 4,
+    letterSpacing: 0.8,
   },
-  sheetOption: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  optionText: {
-    fontSize: 15,
-    fontWeight: "600",
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
+    marginVertical: 4,
   },
 });

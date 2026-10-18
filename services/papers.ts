@@ -1,4 +1,5 @@
 import type { Paper, PaperFilters, PapersResponse } from "@/types/papers";
+import { gradesMatch } from "@/utils/gradeUtils";
 
 const papers: Paper[] = [
   {
@@ -76,8 +77,7 @@ export async function getPapers(
   const search = (filters.search ?? "").trim().toLowerCase();
   const filtered = papers.filter((paper) => {
     const matchesGrade =
-      !filters.grade ||
-      paper.grade.toLowerCase() === filters.grade.toLowerCase();
+      !filters.grade || gradesMatch(paper.grade, filters.grade);
     const matchesSubject =
       !filters.subject ||
       paper.subject.toLowerCase() === filters.subject.toLowerCase();
