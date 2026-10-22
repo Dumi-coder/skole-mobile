@@ -1,6 +1,8 @@
+import { getCookie } from "@better-auth/expo/client";
 import { createSkoleApiClient } from "@skole/api-client";
-import { authSessionResponseSchema } from "@skole/contracts";
 import * as SecureStore from "expo-secure-store";
+
+import { authClient } from "@/lib/auth-client";
 
 export type AppRole = "admin" | "student" | "teacher";
 
@@ -9,20 +11,90 @@ export type AppSession = {
   userId: string;
 };
 
-const apiBaseUrl = (
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001"
-).replace(/\/+$/, "");
-const googleAuthFallbackPaths = [
-  "/v1/auth/sign-in/google",
-  "/v1/auth/google",
-  "/v1/auth/oauth/google",
-  "/v1/auth/google/callback",
-];
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL;
 
-export const hasApiConfig = Boolean(apiBaseUrl);
-export const apiClient = createSkoleApiClient({ baseUrl: apiBaseUrl });
+if (!apiBaseUrl) {
+  throw new Error(
+    "EXPO_PUBLIC_API_URL is not set. " +
+      "Create a .env file with EXPO_PUBLIC_API_URL=<your API URL>.",
+  );
+}
 
-async function readApiError(response: Response): Promise<string> {
+const baseUrl = apiBaseUrl.replace(/\/+$/, "");
+
+/**
+ * Retrieve the latest session cookie, checking authClient and falling back to SecureStore.
+ */
+async function resolveLatestCookie(): Promise<string> {
+  const cookie = await authClient.getCookie();
+  if (cookie) return cookie;
+  try {
+    const rawStored = await SecureStore.getItemAsync("skole_cookie");
+    if (rawStored) {
+      return getCookie(rawStored);
+    }
+  } catch {
+    // SecureStore access failed or not initialized
+  }
+  return "";
+}
+
+/**
+ * Fetch wrapper that attaches the better-auth session cookie.
+ * Uses credentials: "omit" so the native fetch does not interfere
+ * with cookie handling — the Cookie header is set explicitly.
+ */
+export async function authFetch(
+  input: string | URL | Request,
+  init?: RequestInit,
+): Promise<Response> {
+  const cookie = await resolveLatestCookie();
+  const headers = new Headers(init?.headers);
+  if (cookie) {
+    headers.set("Cookie", cookie);
+  }
+
+  const response = await fetch(input, {
+    ...init,
+    credentials: "omit",
+    headers,
+  });
+
+  const requestUrl =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input.url;
+
+  // Only auto-signout on 401 if the request is not a session verification check
+  if (response.status === 401 && !requestUrl.includes("/v1/auth/session")) {
+    await authClient.signOut();
+  }
+
+  return response;
+}
+
+/**
+ * Custom fetch implementation for @skole/api-client that injects
+ * the session cookie from better-auth's expoClient storage.
+ */
+const authenticatedFetch: typeof globalThis.fetch = async (input, init) => {
+  const cookie = await resolveLatestCookie();
+  const headers = new Headers(init?.headers);
+  if (cookie) {
+    headers.set("Cookie", cookie);
+  }
+  // Override credentials to "omit" — we handle cookies manually.
+  return fetch(input, { ...init, credentials: "omit", headers });
+};
+
+export const apiClient = createSkoleApiClient({
+  baseUrl,
+  fetch: authenticatedFetch,
+});
+
+export async function readApiError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as {
       message?: string;
@@ -32,141 +104,4 @@ async function readApiError(response: Response): Promise<string> {
   } catch {
     return "The API request failed.";
   }
-}
-
-export async function getStoredSession(): Promise<AppSession | null> {
-  const value = await SecureStore.getItemAsync("skole-session");
-  if (!value) return null;
-
-  try {
-    return JSON.parse(value) as AppSession;
-  } catch {
-    return null;
-  }
-}
-
-export async function setStoredSession(session: AppSession): Promise<void> {
-  await SecureStore.setItemAsync("skole-session", JSON.stringify(session));
-}
-
-export async function clearStoredSession(): Promise<void> {
-  await SecureStore.deleteItemAsync("skole-session");
-}
-
-export async function signInWithEmail(
-  email: string,
-  password: string,
-): Promise<AppSession> {
-  const response = await fetch(`${apiBaseUrl}/v1/auth/sign-in/email`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const session = authSessionResponseSchema.parse(await response.json()).data;
-  const nextSession: AppSession = {
-    role: session.role,
-    userId: session.userId,
-  };
-
-  await setStoredSession(nextSession);
-  return nextSession;
-}
-
-export async function getCurrentSession(): Promise<AppSession | null> {
-  const response = await fetch(`${apiBaseUrl}/v1/auth/session`, {
-    method: "GET",
-    credentials: "include",
-    headers: {
-      accept: "application/json",
-    },
-  });
-
-  if (response.status === 401) {
-    await clearStoredSession();
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const session = authSessionResponseSchema.parse(await response.json()).data;
-  const nextSession: AppSession = {
-    role: session.role,
-    userId: session.userId,
-  };
-
-  await setStoredSession(nextSession);
-  return nextSession;
-}
-
-export async function signInWithGoogle(idToken: string): Promise<AppSession> {
-  const trimmedToken = idToken.trim();
-  if (!trimmedToken) {
-    throw new Error("Google authentication did not return a valid token.");
-  }
-
-  let lastError: Error | null = null;
-
-  for (const path of googleAuthFallbackPaths) {
-    try {
-      const response = await fetch(`${apiBaseUrl}${path}`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          idToken: trimmedToken,
-          token: trimmedToken,
-          provider: "google",
-        }),
-      });
-
-      if (response.status === 404) {
-        continue;
-      }
-
-      if (!response.ok) {
-        const message = await readApiError(response);
-        throw new Error(message);
-      }
-
-      const body = (await response.json()) as {
-        data?: { role?: AppRole | null; userId?: string };
-      };
-      const sessionData = body?.data;
-
-      if (!sessionData || !sessionData.userId) {
-        throw new Error(
-          "Google sign-in response was not in the expected format.",
-        );
-      }
-
-      const nextSession: AppSession = {
-        role: sessionData.role ?? null,
-        userId: sessionData.userId,
-      };
-
-      await setStoredSession(nextSession);
-      return nextSession;
-    } catch (caughtError) {
-      lastError =
-        caughtError instanceof Error
-          ? caughtError
-          : new Error("Google sign-in failed.");
-    }
-  }
-
-  throw lastError ?? new Error("Google sign-in endpoint was unavailable.");
 }

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Image, StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -7,6 +7,7 @@ import Colors from "@/constants/Colors";
 
 type AvatarProps = {
   label: string;
+  imageUrl?: string | null;
   size?: number;
   backgroundColor?: string;
   textColor?: string;
@@ -16,14 +17,17 @@ type AvatarProps = {
 
 export function Avatar({
   label,
+  imageUrl,
   size = 72,
   backgroundColor,
   textColor,
   verified = false,
   children,
 }: AvatarProps) {
+  const [hasImageError, setHasImageError] = useState(false);
   const scheme = useColorScheme();
   const palette = Colors[scheme];
+  const showImage = !!imageUrl && !hasImageError;
 
   return (
     <View
@@ -37,19 +41,33 @@ export function Avatar({
         },
       ]}
     >
-      {children ?? (
-        <Text
-          style={[
-            styles.text,
-            {
-              color: textColor ?? palette.onForeground,
-              fontSize: Math.max(14, size * 0.32),
-            },
-          ]}
-        >
-          {label}
-        </Text>
-      )}
+      {children ??
+        (showImage ? (
+          <Image
+            source={{ uri: imageUrl! }}
+            onError={() => setHasImageError(true)}
+            style={[
+              styles.image,
+              {
+                width: size,
+                height: size,
+                borderRadius: size * 0.22,
+              },
+            ]}
+          />
+        ) : (
+          <Text
+            style={[
+              styles.text,
+              {
+                color: textColor ?? palette.onForeground,
+                fontSize: Math.max(14, size * 0.32),
+              },
+            ]}
+          >
+            {label}
+          </Text>
+        ))}
       {verified ? (
         <View
           style={[
@@ -79,6 +97,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     position: "relative",
+  },
+  image: {
+    resizeMode: "cover",
   },
   text: {
     fontWeight: "700",

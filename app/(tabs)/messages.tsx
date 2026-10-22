@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { LoginSheet } from "@/components/auth/LoginSheet";
 import { ConversationList } from "@/components/messages/ConversationList";
 import { Text } from "@/components/Themed";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -14,8 +15,19 @@ import { FieldError } from "@/components/ui/FieldError";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { useConversations } from "@/hooks/useConversations";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function MessagesScreen() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <LoginSheet title="Messages" />;
+  }
+
+  return <MessagesContent />;
+}
+
+function MessagesContent() {
   const scheme = useColorScheme();
   const palette = Colors[scheme];
   const conversationsQuery = useConversations();

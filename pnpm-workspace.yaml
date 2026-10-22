@@ -1,2 +1,4 @@
 allowBuilds:
-  unrs-resolver: set this to true or false
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - expo-network@57.0.3

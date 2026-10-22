@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { LoginSheet } from "@/components/auth/LoginSheet";
 import { MessageBubble } from "@/components/messages/MessageBubble";
 import { MessageComposer } from "@/components/messages/MessageComposer";
 import { Text } from "@/components/Themed";
@@ -20,8 +21,19 @@ import { FieldError } from "@/components/ui/FieldError";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { getConversationById } from "@/services/messages";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function ChatScreen() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <LoginSheet title="Chat" />;
+  }
+
+  return <ChatContent />;
+}
+
+function ChatContent() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const scheme = useColorScheme();
   const palette = Colors[scheme];

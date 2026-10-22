@@ -1,102 +1,59 @@
+import { apiClient } from "@/services/api";
 import type { Paper, PaperFilters, PapersResponse } from "@/types/papers";
-import { gradesMatch } from "@/utils/gradeUtils";
 
-const papers: Paper[] = [
-  {
-    id: "p-1",
-    title: "2024 Chemistry Paper I",
-    subject: "Science",
-    grade: "A/L",
-    year: 2024,
-    medium: "English",
-  },
-  {
-    id: "p-2",
-    title: "2023 Physics MCQ Set",
-    subject: "Science",
-    grade: "O/L",
-    year: 2023,
-    medium: "Sinhala",
-  },
-  {
-    id: "p-3",
-    title: "2022 Biology Structured Essay",
-    subject: "Science",
-    grade: "A/L",
-    year: 2022,
-    medium: "Tamil",
-  },
-  {
-    id: "p-4",
-    title: "English Essay Practice Pack",
-    subject: "English",
-    grade: "Grade 6-9",
-    year: 2024,
-    medium: "English",
-  },
-  {
-    id: "p-5",
-    title: "ICT Revision Paper",
-    subject: "ICT",
-    grade: "O/L",
-    year: 2024,
-    medium: "English",
-  },
-  {
-    id: "p-6",
-    title: "History Short Answers",
-    subject: "History",
-    grade: "Grade 6-9",
-    year: 2023,
-    medium: "Sinhala",
-  },
-  {
-    id: "p-7",
-    title: "Mathematics Part II",
-    subject: "Maths",
-    grade: "O/L",
-    year: 2022,
-    medium: "English",
-  },
-  {
-    id: "p-8",
-    title: "A/L Combined Maths Past Papers",
-    subject: "Maths",
-    grade: "A/L",
-    year: 2021,
-    medium: "English",
-  },
-];
+function normalizeGrade(
+  grade?: string,
+): "AL" | "OL" | "6-9" | "Other" | undefined {
+  if (!grade) return undefined;
+  if (/^a\/?l$/i.test(grade)) return "AL";
+  if (/^o\/?l$/i.test(grade)) return "OL";
+  if (/6-9|6.*9/i.test(grade)) return "6-9";
+  if (grade === "Other") return "Other";
+  return undefined;
+}
+
+function normalizeMedium(
+  medium?: string,
+): "english" | "sinhala" | "tamil" | undefined {
+  if (!medium) return undefined;
+  const lower = medium.toLowerCase();
+  if (lower === "english" || lower === "sinhala" || lower === "tamil") {
+    return lower;
+  }
+  return undefined;
+}
 
 export async function getPapers(
   filters: PaperFilters = {},
   page = 1,
+  limit = 10,
 ): Promise<PapersResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 380));
+  const offset = (page - 1) * limit;
 
-  const search = (filters.search ?? "").trim().toLowerCase();
-  const filtered = papers.filter((paper) => {
-    const matchesGrade =
-      !filters.grade || gradesMatch(paper.grade, filters.grade);
-    const matchesSubject =
-      !filters.subject ||
-      paper.subject.toLowerCase() === filters.subject.toLowerCase();
-    const matchesMedium =
-      !filters.medium ||
-      paper.medium.toLowerCase() === filters.medium.toLowerCase();
-    const matchesSearch =
-      !search || paper.title.toLowerCase().includes(search);
-
-    return matchesGrade && matchesSubject && matchesMedium && matchesSearch;
+  const result = await apiClient.searchMaterials({
+    limit,
+    offset,
+    grade: normalizeGrade(filters.grade),
+    medium: normalizeMedium(filters.medium),
+    search: filters.search?.trim() || undefined,
+    subject: filters.subject?.trim() || undefined,
   });
 
-  const pageSize = 4;
-  const start = (page - 1) * pageSize;
-  const slice = filtered.slice(start, start + pageSize);
+  const papers: Paper[] = result.materials.map((m) => ({
+    id: m.id,
+    title: m.title,
+    subject: m.subject,
+    grade: m.grade,
+    year: m.year ?? new Date().getFullYear(),
+    medium: filters.medium || "English",
+    fileUrl: m.fileUrl,
+  }));
+
+  const hasNextPage = offset + result.materials.length < result.totalCount;
 
   return {
-    papers: slice,
-    totalCount: filtered.length,
-    nextPage: start + pageSize < filtered.length ? page + 1 : null,
+    papers,
+    totalCount: result.totalCount,
+    nextPage: hasNextPage ? page + 1 : null,
   };
 }

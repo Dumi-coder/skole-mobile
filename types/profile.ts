@@ -10,6 +10,7 @@ export type UserProfile = {
   name: string;
   email: string;
   avatar?: string;
+  imageUrl?: string | null;
   bio?: string;
   stats: {
     classes: number;

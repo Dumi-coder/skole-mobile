@@ -5,6 +5,7 @@ export type Paper = {
   grade: string;
   year: number;
   medium: string;
+  fileUrl?: string | null;
 };
 
 export type PaperFilters = {

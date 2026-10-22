@@ -6,9 +6,16 @@ import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import type { UserProfile } from "@/types/profile";
 
-export function ProfileHeader({ profile }: { profile: UserProfile }) {
+export function ProfileHeader({
+  profile,
+  imageUrl,
+}: {
+  profile: UserProfile;
+  imageUrl?: string | null;
+}) {
   const scheme = useColorScheme();
   const palette = Colors[scheme];
+  const photoUrl = imageUrl ?? profile.imageUrl ?? null;
 
   return (
     <View
@@ -19,6 +26,7 @@ export function ProfileHeader({ profile }: { profile: UserProfile }) {
     >
       <View style={styles.avatarWrap}>
         <Avatar
+          imageUrl={photoUrl}
           label={profile.avatar ?? profile.name.slice(0, 2).toUpperCase()}
           size={80}
         />

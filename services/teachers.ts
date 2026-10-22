@@ -1,169 +1,129 @@
+import { apiClient } from "@/services/api";
 import type {
-    Teacher,
-    TeacherFilters,
-    TeachersResponse,
+  Teacher,
+  TeacherFilters,
+  TeachersResponse,
 } from "@/types/teacher";
-import { gradesMatch } from "@/utils/gradeUtils";
 
-const teacherData: Teacher[] = [
-  {
-    id: "t-1",
-    name: "Malith Perera",
-    avatar: "MP",
-    verified: true,
-    locations: ["Colombo 07", "Nugegoda"],
-    grades: ["A/L"],
-    subjects: ["Maths", "Physics"],
-    medium: "English",
-    about:
-      "I help students build confidence in mathematics and physical science through short, structured problem-solving sessions.",
-    qualifications: ["BSc in Mathematics", "PGDE", "10+ years teaching"],
-    classes: ["A/L Combined Maths", "Advanced Mechanics"],
-  },
-  {
-    id: "t-2",
-    name: "Nimali Jayawardena",
-    avatar: "NJ",
-    verified: false,
-    locations: ["Kandy"],
-    grades: ["O/L"],
-    subjects: ["Science", "English"],
-    medium: "Sinhala",
-    about:
-      "Focused on improving confidence for O/L students with clear note-based revision and weekly practice checks.",
-    qualifications: ["BSc Biology", "Teacher Training Certificate"],
-    classes: ["Science Revision", "English Writing Clinic"],
-  },
-  {
-    id: "t-3",
-    name: "Rashan Fernando",
-    avatar: undefined,
-    verified: true,
-    locations: ["Galle", "Matara"],
-    grades: ["Grade 6-9"],
-    subjects: ["ICT", "History"],
-    medium: "English",
-    about:
-      "I work with middle school learners on digital literacy, project work, and building consistent study habits for exams.",
-    qualifications: ["Dip. in ICT Education", "School Mentorship"],
-    classes: ["Grade 8 Coding Basics", "History Revision Class"],
-  },
-  {
-    id: "t-4",
-    name: "Sajani Weerasinghe",
-    avatar: "SW",
-    verified: true,
-    locations: ["Anuradhapura", "Kurunegala"],
-    grades: ["A/L"],
-    subjects: ["Biology", "Science"],
-    medium: "Tamil",
-    about:
-      "I support A/L biology learners with concept mapping, question patterns, and exam-ready revision frameworks.",
-    qualifications: ["BSc in Zoology", "A/L Biology Mentor"],
-    classes: ["A/L Biology Intensive", "Science Fundamentals"],
-  },
-  {
-    id: "t-5",
-    name: "Kaveen Gunasekara",
-    avatar: "KG",
-    verified: false,
-    locations: ["Colombo 06"],
-    grades: ["O/L"],
-    subjects: ["Maths", "Science"],
-    medium: "English",
-    about:
-      "I help students improve speed and accuracy with targeted practice and exam strategy sessions.",
-    qualifications: ["BSc Engineering", "Math Remedial Coach"],
-    classes: ["Math Booster", "Science Crash Course"],
-  },
-  {
-    id: "t-7",
-    name: "Prof. Chandana Wickramasinghe-Arachchi",
-    avatar: undefined,
-    verified: true,
-    locations: ["Colombo 03", "Dehiwala", "Mount Lavinia"],
-    grades: ["A/L", "O/L"],
-    subjects: ["Maths", "Science", "English", "History", "ICT"],
-    medium: "English",
-    about:
-      "Experienced educator supporting students across multiple grades with structured revision and exam strategy.",
-    qualifications: ["PhD Education", "National Teaching Award"],
-    classes: ["Multi-subject Revision", "Exam Skills Workshop"],
-  },
-  {
-    id: "t-6",
-    name: "Madhavi Dissanayake",
-    avatar: "MD",
-    verified: true,
-    locations: ["Negombo", "Ja-Ela"],
-    grades: ["Grade 6-9"],
-    subjects: ["English", "History"],
-    medium: "Sinhala",
-    about:
-      "I focus on language confidence and subject clarity for younger learners through engaging lesson examples and regular check-ins.",
-    qualifications: ["BA English", "Primary Education Specialist"],
-    classes: ["English Reading Lab", "History Story Maps"],
-  },
-];
+function normalizeGrade(
+  grade?: string,
+): "AL" | "OL" | "6-9" | "Other" | undefined {
+  if (!grade) return undefined;
+  if (/^a\/?l$/i.test(grade)) return "AL";
+  if (/^o\/?l$/i.test(grade)) return "OL";
+  if (/6-9|6.*9/i.test(grade)) return "6-9";
+  if (grade === "Other") return "Other";
+  return undefined;
+}
+
+function normalizeMedium(
+  medium?: string,
+): "english" | "sinhala" | "tamil" | undefined {
+  if (!medium) return undefined;
+  const lower = medium.toLowerCase();
+  if (lower === "english" || lower === "sinhala" || lower === "tamil") {
+    return lower;
+  }
+  return undefined;
+}
 
 export async function getTeachers(
   filters: TeacherFilters = {},
   page = 1,
+  limit = 10,
 ): Promise<TeachersResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 420));
+  const offset = (page - 1) * limit;
 
-  const search = (filters.search ?? "").trim().toLowerCase();
-  const filtered = teacherData.filter((teacher) => {
-    const haystack = [
-      teacher.name,
-      teacher.locations.join(" "),
-      teacher.subjects.join(" "),
-      teacher.grades.join(" "),
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    const matchesGrade =
-      !filters.grade ||
-      teacher.grades.some(
-        (grade) => gradesMatch(grade, filters.grade!),
-      );
-    const matchesSubject =
-      !filters.subject ||
-      teacher.subjects.some(
-        (subject) => subject.toLowerCase() === filters.subject?.toLowerCase(),
-      );
-    const matchesMedium =
-      !filters.medium ||
-      teacher.medium?.toLowerCase() === filters.medium?.toLowerCase();
-    const matchesLocation =
-      !filters.location ||
-      teacher.locations.some((location) =>
-        location.toLowerCase().includes(filters.location!.toLowerCase()),
-      );
-    const matchesSearch = !search || haystack.includes(search);
-
-    return (
-      matchesGrade &&
-      matchesSubject &&
-      matchesMedium &&
-      matchesLocation &&
-      matchesSearch
-    );
+  const result = await apiClient.searchTeachers({
+    limit,
+    offset,
+    grade: normalizeGrade(filters.grade),
+    medium: normalizeMedium(filters.medium),
+    district:
+      filters.location && filters.location !== "Other"
+        ? filters.location
+        : undefined,
+    search: filters.search?.trim() || undefined,
+    subject: filters.subject?.trim() || undefined,
   });
 
-  const pageSize = 4;
-  const start = (page - 1) * pageSize;
-  const slice = filtered.slice(start, start + pageSize);
+  const teachers: Teacher[] = result.teachers.map((t) => ({
+    id: t.id,
+    name: t.name,
+    avatar: t.avatarUrl ?? (t.name ? t.name.slice(0, 2).toUpperCase() : "T"),
+    imageUrl: t.avatarUrl,
+    verified: t.isVerified,
+    locations: t.locations ?? [],
+    grades: t.grades ?? [],
+    subjects: t.subjects ?? [],
+    medium: undefined,
+    about: "",
+    qualifications: [],
+    classes: [],
+  }));
+
+  const hasNextPage = offset + result.teachers.length < result.totalCount;
 
   return {
-    teachers: slice,
-    totalCount: filtered.length,
-    nextPage: start + pageSize < filtered.length ? page + 1 : null,
+    teachers,
+    totalCount: result.totalCount,
+    nextPage: hasNextPage ? page + 1 : null,
   };
 }
 
 export async function getTeacherById(id: string): Promise<Teacher | null> {
-  await new Promise((resolve) => setTimeout(resolve, 220));
-  return teacherData.find((teacher) => teacher.id === id) ?? null;
+  const profile = await apiClient.getPublicTeacherProfile(id);
+  if (!profile) return null;
+
+  let classes: string[] = [];
+  let medium: string | undefined = undefined;
+
+  try {
+    const classList = await apiClient.getTeacherClasses(id, {
+      limit: 10,
+      offset: 0,
+    });
+    classes = classList.items
+      .map((c) => c.name || `${c.gradeName ?? ""} ${c.subjectName ?? ""}`.trim())
+      .filter(Boolean);
+
+    const distinctMediums = Array.from(
+      new Set(
+        classList.items
+          .map((c) => c.medium)
+          .filter((m): m is string => Boolean(m)),
+      ),
+    );
+    if (distinctMediums.length > 0) {
+      medium = distinctMediums.join(", ");
+    }
+  } catch {
+    // Non-fatal if class list fails to load
+  }
+
+  const qualifications: string[] = [
+    profile.preferences?.showDegree ? profile.degreeName : null,
+    profile.preferences?.showDegree ? profile.undergradDegreeName : null,
+    profile.preferences?.showDiplomaInfo ? profile.diplomaName : null,
+    profile.preferences?.showUniversityInfo ? profile.universityName : null,
+    profile.facultyName,
+  ].filter((item): item is string => Boolean(item && item.trim()));
+
+  return {
+    id: profile.id,
+    name: profile.name,
+    avatar:
+      profile.avatarUrl ??
+      (profile.name ? profile.name.slice(0, 2).toUpperCase() : "T"),
+    imageUrl: profile.avatarUrl,
+    verified: profile.verified,
+    locations: profile.locations ?? [],
+    grades: profile.grades ?? [],
+    subjects: profile.subjects ?? [],
+    medium,
+    about: profile.bio || "No biography provided.",
+    qualifications:
+      qualifications.length > 0 ? qualifications : ["Verified Educator"],
+    classes,
+  };
 }

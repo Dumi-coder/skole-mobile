@@ -2,6 +2,7 @@ export type Teacher = {
   id: string;
   name: string;
   avatar?: string;
+  imageUrl?: string | null;
   verified: boolean;
   locations: string[];
   grades: string[];

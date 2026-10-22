@@ -22,6 +22,9 @@ export default {
     primary: "#0A0A0A",
     foreground: appTheme.light.foreground,
     onForeground: appTheme.light.onForeground,
+    splashBackground: "#0A0A0A",
+    splashText: "#FFFFFF",
+    splashFooter: "#A1A1AA",
   },
   dark: {
     text: appTheme.dark.text,
@@ -44,5 +47,13 @@ export default {
     primary: "#FAFAFA",
     foreground: appTheme.dark.foreground,
     onForeground: appTheme.dark.onForeground,
+    splashBackground: "#0A0A0A",
+    splashText: "#FFFFFF",
+    splashFooter: "#A1A1AA",
+  },
+  splash: {
+    background: "#0A0A0A",
+    text: "#FFFFFF",
+    footer: "#A1A1AA",
   },
 };

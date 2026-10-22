@@ -32,6 +32,10 @@ export function TeacherProfileView({
       {showAvatar ? (
         <Avatar
           label={getTeacherInitials(teacher)}
+          imageUrl={
+            teacher.imageUrl ??
+            (teacher.avatar?.startsWith("http") ? teacher.avatar : null)
+          }
           verified={teacher.verified}
         />
       ) : null}
