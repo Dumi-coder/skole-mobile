@@ -8,9 +8,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { router } from "expo-router";
 import { Text, View } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { TeacherProfileModal } from "@/components/teachers/TeacherProfileModal";
 
 type Category = "Teachers" | "Feed" | "Papers";
 
@@ -122,6 +124,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme];
   const [activeCategory, setActiveCategory] = useState<Category>("Teachers");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [teacherFilterState, setTeacherFilterState] = useState({
@@ -379,13 +382,15 @@ export default function HomeScreen() {
                 {filteredTeachers.length} teachers found
               </Text>
               {filteredTeachers.map((teacher) => (
-                <View
+                <Pressable
                   key={teacher.id}
-                  style={[
+                  onPress={() => setSelectedTeacherId(teacher.id)}
+                  style={({ pressed }) => [
                     styles.teacherCard,
                     {
-                      backgroundColor: palette.card,
+                      backgroundColor: pressed ? palette.muted : palette.card,
                       borderColor: palette.border,
+                      opacity: pressed ? 0.9 : 1,
                     },
                   ]}
                 >
@@ -396,7 +401,7 @@ export default function HomeScreen() {
                     ]}
                   >
                     <Text style={styles.teacherAvatarText}>
-                      {teacher.name.charAt(0)}
+                      {teacher.name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
 
@@ -451,7 +456,7 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                   </View>
-                </View>
+                </Pressable>
               ))}
             </>
           )}
@@ -574,6 +579,19 @@ export default function HomeScreen() {
           )}
         </ScrollView>
       </View>
+
+      <TeacherProfileModal
+        visible={Boolean(selectedTeacherId)}
+        teacherId={selectedTeacherId}
+        onClose={() => setSelectedTeacherId(null)}
+        onMessageTeacher={(tId, tName) => {
+          setSelectedTeacherId(null);
+          router.push({
+            pathname: "/(tabs)/messages",
+            params: { startChatWith: tId, name: tName },
+          });
+        }}
+      />
     </SafeAreaView>
   );
 }
