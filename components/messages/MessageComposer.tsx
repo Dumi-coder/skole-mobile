@@ -2,12 +2,11 @@ import { useState } from "react";
 import {
   Pressable,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from "react-native";
 import { SymbolView } from "expo-symbols";
-
-import { Text } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 
@@ -20,40 +19,49 @@ type ReplyTarget = {
 type MessageComposerProps = {
   value?: string;
   onChangeText?: (text: string) => void;
-  onSend?: (content?: string, replyToId?: string | null) => void;
-  placeholder?: string;
   replyTarget?: ReplyTarget | null;
   onClearReply?: () => void;
+  onSend: ((content: string, replyToId?: string | null) => void) | (() => void);
   disabled?: boolean;
+  placeholder?: string;
 };
 
 export function MessageComposer({
   value,
   onChangeText,
-  onSend,
-  placeholder = "Write a message...",
   replyTarget,
   onClearReply,
+  onSend,
   disabled = false,
+  placeholder = "Type a message...",
 }: MessageComposerProps) {
   const [internalText, setInternalText] = useState("");
-  const scheme = useColorScheme();
-  const palette = Colors[scheme];
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme];
 
   const isControlled = value !== undefined;
   const currentText = isControlled ? value : internalText;
 
-  const handleTextChange = (text: string) => {
+  const handleTextChange = (newText: string) => {
     if (!isControlled) {
-      setInternalText(text);
+      setInternalText(newText);
     }
-    onChangeText?.(text);
+    onChangeText?.(newText);
   };
 
   const handleSend = () => {
     const trimmed = currentText.trim();
     if (!trimmed || disabled) return;
-    onSend?.(trimmed, replyTarget?.id);
+
+    if (onSend.length === 0) {
+      (onSend as () => void)();
+    } else {
+      (onSend as (content: string, replyToId?: string | null) => void)(
+        trimmed,
+        replyTarget?.id,
+      );
+    }
+
     if (!isControlled) {
       setInternalText("");
     }
@@ -65,8 +73,11 @@ export function MessageComposer({
   return (
     <View
       style={[
-        styles.bar,
-        { backgroundColor: palette.card, borderTopColor: palette.border },
+        styles.container,
+        {
+          backgroundColor: palette.card,
+          borderTopColor: palette.border,
+        },
       ]}
     >
       {/* Reply Preview Bar */}
@@ -75,20 +86,20 @@ export function MessageComposer({
           style={[
             styles.replyBanner,
             {
-              backgroundColor: palette.subtleBg,
-              borderLeftColor: palette.foreground,
+              backgroundColor: palette.muted,
+              borderLeftColor: palette.tint,
             },
           ]}
         >
           <View style={styles.replyContent}>
             <Text
-              style={[styles.replyHeader, { color: palette.foreground }]}
+              style={[styles.replyHeader, { color: palette.tint }]}
               numberOfLines={1}
             >
               Replying to {replyTarget.senderName}
             </Text>
             <Text
-              style={[styles.replySnippet, { color: palette.muted }]}
+              style={[styles.replySnippet, { color: palette.mutedText }]}
               numberOfLines={1}
             >
               {replyTarget.body}
@@ -102,7 +113,7 @@ export function MessageComposer({
             >
               <SymbolView
                 name={{ ios: "xmark.circle.fill", android: "close", web: "close" }}
-                tintColor={palette.muted}
+                tintColor={palette.mutedText}
                 size={18}
               />
             </Pressable>
@@ -110,45 +121,45 @@ export function MessageComposer({
         </View>
       ) : null}
 
+      {/* Input Row */}
       <View style={styles.inputRow}>
         <TextInput
           value={currentText}
           onChangeText={handleTextChange}
           placeholder={placeholder}
-          placeholderTextColor={palette.muted}
-          accessibilityLabel="Message input"
+          placeholderTextColor={palette.mutedText}
           multiline
           maxLength={1000}
           editable={!disabled}
           style={[
             styles.input,
             {
-              backgroundColor: palette.subtleBg,
+              backgroundColor: palette.muted,
               color: palette.text,
               borderColor: palette.border,
             },
           ]}
         />
+
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
           onPress={handleSend}
           disabled={!canSend}
           style={[
             styles.sendButton,
             {
-              backgroundColor: canSend ? palette.foreground : palette.subtleBg,
+              backgroundColor: canSend ? palette.tint : palette.muted,
             },
           ]}
         >
-          <Text
-            style={[
-              styles.sendText,
-              { color: canSend ? palette.onForeground : palette.muted },
-            ]}
-          >
-            Send
-          </Text>
+          <SymbolView
+            name={{
+              ios: "arrow.up.circle.fill",
+              android: "send",
+              web: "send",
+            }}
+            tintColor={canSend ? "#ffffff" : palette.mutedText}
+            size={22}
+          />
         </Pressable>
       </View>
     </View>
@@ -156,11 +167,10 @@ export function MessageComposer({
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 20,
+  container: {
     borderTopWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   replyBanner: {
     flexDirection: "row",
@@ -189,27 +199,27 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    alignItems: "flex-end",
+    gap: 8,
   },
   input: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
+    minHeight: 40,
+    maxHeight: 110,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontSize: 14,
+    lineHeight: 18,
   },
   sendButton: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    justifyContent: "center",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
-  },
-  sendText: {
-    fontSize: 14,
-    fontWeight: "700",
+    justifyContent: "center",
+    marginBottom: 1,
   },
 });
