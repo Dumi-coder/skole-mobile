@@ -2,11 +2,12 @@ import { useState } from "react";
 import {
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import { SymbolView } from "expo-symbols";
+
+import { Text } from "@/components/Themed";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 
@@ -17,40 +18,55 @@ type ReplyTarget = {
 };
 
 type MessageComposerProps = {
-  replyTarget: ReplyTarget | null;
-  onClearReply: () => void;
-  onSend: (content: string, replyToId?: string | null) => void;
+  value?: string;
+  onChangeText?: (text: string) => void;
+  onSend?: (content?: string, replyToId?: string | null) => void;
+  placeholder?: string;
+  replyTarget?: ReplyTarget | null;
+  onClearReply?: () => void;
   disabled?: boolean;
 };
 
 export function MessageComposer({
+  value,
+  onChangeText,
+  onSend,
+  placeholder = "Write a message...",
   replyTarget,
   onClearReply,
-  onSend,
   disabled = false,
 }: MessageComposerProps) {
-  const [text, setText] = useState("");
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme];
+  const [internalText, setInternalText] = useState("");
+  const scheme = useColorScheme();
+  const palette = Colors[scheme];
 
-  const handleSend = () => {
-    const trimmed = text.trim();
-    if (!trimmed || disabled) return;
-    onSend(trimmed, replyTarget?.id);
-    setText("");
-    onClearReply();
+  const isControlled = value !== undefined;
+  const currentText = isControlled ? value : internalText;
+
+  const handleTextChange = (text: string) => {
+    if (!isControlled) {
+      setInternalText(text);
+    }
+    onChangeText?.(text);
   };
 
-  const canSend = Boolean(text.trim()) && !disabled;
+  const handleSend = () => {
+    const trimmed = currentText.trim();
+    if (!trimmed || disabled) return;
+    onSend?.(trimmed, replyTarget?.id);
+    if (!isControlled) {
+      setInternalText("");
+    }
+    onClearReply?.();
+  };
+
+  const canSend = Boolean(currentText.trim()) && !disabled;
 
   return (
     <View
       style={[
-        styles.container,
-        {
-          backgroundColor: palette.card,
-          borderTopColor: palette.border,
-        },
+        styles.bar,
+        { backgroundColor: palette.card, borderTopColor: palette.border },
       ]}
     >
       {/* Reply Preview Bar */}
@@ -59,78 +75,80 @@ export function MessageComposer({
           style={[
             styles.replyBanner,
             {
-              backgroundColor: palette.muted,
-              borderLeftColor: palette.tint,
+              backgroundColor: palette.subtleBg,
+              borderLeftColor: palette.foreground,
             },
           ]}
         >
           <View style={styles.replyContent}>
             <Text
-              style={[styles.replyHeader, { color: palette.tint }]}
+              style={[styles.replyHeader, { color: palette.foreground }]}
               numberOfLines={1}
             >
               Replying to {replyTarget.senderName}
             </Text>
             <Text
-              style={[styles.replySnippet, { color: palette.mutedText }]}
+              style={[styles.replySnippet, { color: palette.muted }]}
               numberOfLines={1}
             >
               {replyTarget.body}
             </Text>
           </View>
-          <Pressable
-            hitSlop={8}
-            onPress={onClearReply}
-            style={styles.clearReplyBtn}
-          >
-            <SymbolView
-              name={{ ios: "xmark.circle.fill", android: "close", web: "close" }}
-              tintColor={palette.mutedText}
-              size={18}
-            />
-          </Pressable>
+          {onClearReply && (
+            <Pressable
+              hitSlop={8}
+              onPress={onClearReply}
+              style={styles.clearReplyBtn}
+            >
+              <SymbolView
+                name={{ ios: "xmark.circle.fill", android: "close", web: "close" }}
+                tintColor={palette.muted}
+                size={18}
+              />
+            </Pressable>
+          )}
         </View>
       ) : null}
 
-      {/* Input Row */}
       <View style={styles.inputRow}>
         <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Type a message..."
-          placeholderTextColor={palette.mutedText}
+          value={currentText}
+          onChangeText={handleTextChange}
+          placeholder={placeholder}
+          placeholderTextColor={palette.muted}
+          accessibilityLabel="Message input"
           multiline
           maxLength={1000}
           editable={!disabled}
           style={[
             styles.input,
             {
-              backgroundColor: palette.muted,
+              backgroundColor: palette.subtleBg,
               color: palette.text,
               borderColor: palette.border,
             },
           ]}
         />
-
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
           onPress={handleSend}
           disabled={!canSend}
           style={[
             styles.sendButton,
             {
-              backgroundColor: canSend ? palette.tint : palette.muted,
+              backgroundColor: canSend ? palette.foreground : palette.subtleBg,
             },
           ]}
         >
-          <SymbolView
-            name={{
-              ios: "arrow.up.circle.fill",
-              android: "send",
-              web: "send",
-            }}
-            tintColor={canSend ? "#ffffff" : palette.mutedText}
-            size={22}
-          />
+          <Text
+            style={[
+              styles.sendText,
+              { color: canSend ? palette.onForeground : palette.muted },
+            ]}
+          >
+            Send
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -138,10 +156,11 @@ export function MessageComposer({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  bar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 20,
     borderTopWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   replyBanner: {
     flexDirection: "row",
@@ -170,27 +189,27 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 8,
+    alignItems: "center",
+    gap: 10,
   },
   input: {
     flex: 1,
-    minHeight: 40,
-    maxHeight: 110,
-    borderRadius: 20,
+    minHeight: 44,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    fontSize: 14,
-    lineHeight: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     justifyContent: "center",
-    marginBottom: 1,
+    alignItems: "center",
+  },
+  sendText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
