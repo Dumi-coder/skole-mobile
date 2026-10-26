@@ -63,6 +63,7 @@ function MessagesContent() {
   const [isSending, setIsSending] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
+  const handledStartChatRef = useRef<string | null>(null);
   const params = useLocalSearchParams<{
     startChatWith?: string;
     name?: string;
@@ -130,42 +131,52 @@ function MessagesContent() {
 
   // Handle direct message navigation from teacher profile
   useEffect(() => {
-    if (!params.startChatWith) return;
+    const targetId = params.startChatWith;
+    if (!targetId || handledStartChatRef.current === targetId) return;
 
     let isMounted = true;
     void (async () => {
-      // Check if conversation already exists for this teacher
-      const existing = conversations.find(
-        (c) =>
-          c.type === "direct" &&
-          (c.teacherId === params.startChatWith || c.id === params.startChatWith),
-      );
+      try {
+        const list = await chatApi.getConversations();
+        if (!isMounted) return;
 
-      if (existing) {
-        if (isMounted) {
+        setConversations(list);
+
+        const existing = list.find(
+          (c) =>
+            c.type === "direct" &&
+            (c.teacherId === targetId || c.id === targetId),
+        );
+
+        if (existing) {
+          handledStartChatRef.current = targetId;
           handleSelectConversation(existing);
+          return;
         }
-        return;
-      }
 
-      const conv = await chatApi.createConversation({
-        type: "direct",
-        teacherId: params.startChatWith,
-        name: params.name ? `Teacher: ${params.name}` : "Teacher",
-      });
-      if (isMounted) {
-        setConversations((prev) => [
-          conv,
-          ...prev.filter((c) => c.id !== conv.id),
-        ]);
-        handleSelectConversation(conv);
+        const conv = await chatApi.createConversation({
+          type: "direct",
+          teacherId: targetId,
+          name: params.name ? `Teacher: ${params.name}` : "Teacher",
+        });
+
+        if (isMounted) {
+          handledStartChatRef.current = targetId;
+          setConversations((prev) => [
+            conv,
+            ...prev.filter((c) => c.id !== conv.id),
+          ]);
+          handleSelectConversation(conv);
+        }
+      } catch {
+        // Handle error silently
       }
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [params.startChatWith, params.name, conversations, handleSelectConversation]);
+  }, [params.startChatWith, params.name, handleSelectConversation]);
 
   const handleSendMessage = async (
     content: string,
@@ -430,7 +441,7 @@ function MessagesContent() {
                 <View
                   style={[
                     styles.emptyIconCircle,
-                    { backgroundColor: palette.muted },
+                    { backgroundColor: palette.subtleBg },
                   ]}
                 >
                   <SymbolView
@@ -501,7 +512,7 @@ function MessagesContent() {
       <View
         style={[
           styles.filterRow,
-          { backgroundColor: palette.muted, borderColor: palette.border },
+          { backgroundColor: palette.subtleBg, borderColor: palette.border },
         ]}
       >
         <Pressable
@@ -580,7 +591,7 @@ function MessagesContent() {
         <View
           style={[
             styles.searchBar,
-            { backgroundColor: palette.muted, borderColor: palette.border },
+            { backgroundColor: palette.card, borderColor: palette.border },
           ]}
         >
           <SymbolView
@@ -634,7 +645,7 @@ function MessagesContent() {
               styles.conversationRow,
               {
                 backgroundColor: pressed
-                  ? palette.muted
+                  ? palette.subtleBg
                   : palette.card,
                 borderColor: palette.border,
               },
@@ -679,7 +690,11 @@ function MessagesContent() {
                   <View
                     style={[
                       styles.typeBadge,
-                      { backgroundColor: palette.muted },
+                      {
+                        backgroundColor: palette.subtleBg,
+                        borderColor: palette.border,
+                        borderWidth: 1,
+                      },
                     ]}
                   >
                     <Text
@@ -711,7 +726,7 @@ function MessagesContent() {
             <View
               style={[
                 styles.emptyIconCircle,
-                { backgroundColor: palette.muted },
+                { backgroundColor: palette.subtleBg },
               ]}
             >
               <SymbolView
