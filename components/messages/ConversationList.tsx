@@ -20,7 +20,7 @@ export function ConversationList({
       accessibilityLabel={`Open conversation with ${conversation.name}`}
       onPress={() =>
         router.push({
-          pathname: "/chat/[conversationId]",
+          pathname: "/chat/[conversationId]" as any,
           params: { conversationId: conversation.id },
         })
       }

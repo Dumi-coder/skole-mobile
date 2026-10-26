@@ -17,7 +17,7 @@ export function TeacherCard({ teacher }: { teacher: Teacher }) {
       accessibilityLabel={`View profile for ${teacher.name}`}
       onPress={() =>
         router.push({
-          pathname: "/teachers/[teacherId]",
+          pathname: "/teachers/[teacherId]" as any,
           params: { teacherId: teacher.id },
         })
       }
