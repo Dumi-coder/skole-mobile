@@ -18,6 +18,7 @@ import { LoginSheet } from "@/components/auth/LoginSheet";
 import { useAuth } from "@/providers/auth-provider";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "@/components/useColorScheme";
+import { useUIStore } from "@/store/uiStore";
 import { ProfileAvatar } from "@/components/messages/ProfileAvatar";
 import { BecomeTeacherModal } from "@/components/profile/BecomeTeacherModal";
 import { DistrictPickerModal } from "@/components/profile/DistrictPickerModal";
@@ -78,6 +79,7 @@ function ProfileContent() {
   const { user, signOut } = useAuth();
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme];
+  const setThemeMode = useUIStore((state) => state.setThemeMode);
 
   // Active persona toggle: "student" or "teacher"
   const [activeTabRole, setActiveTabRole] = useState<ProfileTabRole>("student");
@@ -122,7 +124,6 @@ function ProfileContent() {
   });
 
   // Account Preferences (matching AccountPreferencesPanel)
-  const [darkModeActive, setDarkModeActive] = useState(colorScheme === "dark");
   const [pushNotifications, setPushNotifications] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(false);
 
@@ -241,7 +242,7 @@ function ProfileContent() {
           style={[
             styles.roleSelector,
             {
-              backgroundColor: palette.muted,
+              backgroundColor: palette.subtleBg,
               borderColor: palette.border,
             },
           ]}
@@ -389,7 +390,7 @@ function ProfileContent() {
                           ? colorScheme === "dark"
                             ? "#1e293b"
                             : "#eff6ff"
-                          : palette.muted,
+                          : palette.subtleBg,
                       borderColor:
                         activeTabRole === "teacher" ? "#bfdbfe" : palette.border,
                     },
@@ -474,7 +475,7 @@ function ProfileContent() {
               style={[
                 styles.statBox,
                 {
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                   borderColor: palette.border,
                 },
               ]}
@@ -493,7 +494,7 @@ function ProfileContent() {
               style={[
                 styles.statBox,
                 {
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                   borderColor: palette.border,
                 },
               ]}
@@ -512,7 +513,7 @@ function ProfileContent() {
               style={[
                 styles.statBox,
                 {
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                   borderColor: palette.border,
                 },
               ]}
@@ -586,7 +587,7 @@ function ProfileContent() {
                       style={[
                         styles.formInput,
                         {
-                          backgroundColor: palette.muted,
+                          backgroundColor: palette.card,
                           borderColor: palette.border,
                           color: palette.text,
                         },
@@ -606,7 +607,7 @@ function ProfileContent() {
                       style={[
                         styles.formInput,
                         {
-                          backgroundColor: palette.muted,
+                          backgroundColor: palette.card,
                           borderColor: palette.border,
                           color: palette.text,
                         },
@@ -625,7 +626,7 @@ function ProfileContent() {
                     style={[
                       styles.selectTrigger,
                       {
-                        backgroundColor: palette.muted,
+                        backgroundColor: palette.card,
                         borderColor: palette.border,
                       },
                     ]}
@@ -660,7 +661,7 @@ function ProfileContent() {
                     style={[
                       styles.selectTrigger,
                       {
-                        backgroundColor: palette.muted,
+                        backgroundColor: palette.card,
                         borderColor: palette.border,
                       },
                     ]}
@@ -699,7 +700,7 @@ function ProfileContent() {
                     style={[
                       styles.formInput,
                       {
-                        backgroundColor: palette.muted,
+                        backgroundColor: palette.card,
                         borderColor: palette.border,
                         color: palette.text,
                       },
@@ -831,7 +832,7 @@ function ProfileContent() {
                     styles.preferenceRow,
                     {
                       borderBottomColor: palette.border,
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                     },
                   ]}
                 >
@@ -864,7 +865,7 @@ function ProfileContent() {
                     styles.preferenceRow,
                     {
                       borderBottomColor: palette.border,
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                     },
                   ]}
                 >
@@ -895,7 +896,7 @@ function ProfileContent() {
                     styles.preferenceRow,
                     {
                       borderBottomColor: palette.border,
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                     },
                   ]}
                 >
@@ -927,7 +928,7 @@ function ProfileContent() {
                   style={[
                     styles.preferenceRow,
                     {
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                     },
                   ]}
                 >
@@ -987,7 +988,7 @@ function ProfileContent() {
                   style={[
                     styles.classItem,
                     {
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                       borderColor: palette.border,
                     },
                   ]}
@@ -1016,7 +1017,7 @@ function ProfileContent() {
                   style={[
                     styles.classItem,
                     {
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                       borderColor: palette.border,
                     },
                   ]}
@@ -1078,7 +1079,7 @@ function ProfileContent() {
                 styles.preferenceRow,
                 {
                   borderBottomColor: palette.border,
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                 },
               ]}
             >
@@ -1093,8 +1094,8 @@ function ProfileContent() {
                 </Text>
               </View>
               <Switch
-                value={darkModeActive}
-                onValueChange={setDarkModeActive}
+                value={colorScheme === "dark"}
+                onValueChange={(val) => setThemeMode(val ? "dark" : "light")}
                 trackColor={{ false: palette.border, true: "#0a66c2" }}
               />
             </View>
@@ -1104,7 +1105,7 @@ function ProfileContent() {
                 styles.preferenceRow,
                 {
                   borderBottomColor: palette.border,
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                 },
               ]}
             >
@@ -1129,7 +1130,7 @@ function ProfileContent() {
               style={[
                 styles.preferenceRow,
                 {
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                 },
               ]}
             >
@@ -1171,7 +1172,7 @@ function ProfileContent() {
           style={[
             styles.logoutBtn,
             {
-              backgroundColor: palette.muted,
+              backgroundColor: palette.card,
               borderColor: palette.border,
             },
           ]}

@@ -79,7 +79,7 @@ export function DistrictPickerModal({
             <Pressable
               onPress={onClose}
               hitSlop={8}
-              style={[styles.closeButton, { backgroundColor: palette.muted }]}
+              style={[styles.closeButton, { backgroundColor: palette.subtleBg }]}
             >
               <SymbolView
                 name={{ ios: "xmark", android: "close", web: "close" }}
@@ -95,7 +95,7 @@ export function DistrictPickerModal({
               style={[
                 styles.searchContainer,
                 {
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.card,
                   borderColor: palette.border,
                 },
               ]}
@@ -153,7 +153,7 @@ export function DistrictPickerModal({
                           ? "#1e293b"
                           : "#f0f9ff"
                         : pressed
-                        ? palette.muted
+                        ? palette.subtleBg
                         : "transparent",
                     },
                   ]}

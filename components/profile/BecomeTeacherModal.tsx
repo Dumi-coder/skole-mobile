@@ -182,7 +182,7 @@ export function BecomeTeacherModal({
             <Pressable
               onPress={handleResetAndClose}
               hitSlop={8}
-              style={[styles.closeBtn, { backgroundColor: palette.muted }]}
+              style={[styles.closeBtn, { backgroundColor: palette.subtleBg }]}
             >
               <SymbolView
                 name={{ ios: "xmark", android: "close", web: "close" }}
@@ -248,7 +248,7 @@ export function BecomeTeacherModal({
                   style={[
                     styles.summaryCard,
                     {
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                       borderColor: palette.border,
                     },
                   ]}
@@ -318,7 +318,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -338,7 +338,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -360,7 +360,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -381,7 +381,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -422,7 +422,7 @@ export function BecomeTeacherModal({
                               {
                                 backgroundColor: active
                                   ? "#0a66c2"
-                                  : palette.muted,
+                                  : palette.subtleBg,
                                 borderColor: active
                                   ? "#0a66c2"
                                   : palette.border,
@@ -465,7 +465,7 @@ export function BecomeTeacherModal({
                               {
                                 backgroundColor: active
                                   ? "#0a66c2"
-                                  : palette.muted,
+                                  : palette.subtleBg,
                                 borderColor: active
                                   ? "#0a66c2"
                                   : palette.border,
@@ -508,7 +508,7 @@ export function BecomeTeacherModal({
                               {
                                 backgroundColor: active
                                   ? "#0a66c2"
-                                  : palette.muted,
+                                  : palette.subtleBg,
                                 borderColor: active
                                   ? "#0a66c2"
                                   : palette.border,
@@ -561,7 +561,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -591,7 +591,7 @@ export function BecomeTeacherModal({
                                   ? colorScheme === "dark"
                                     ? "#1e293b"
                                     : "#f0f9ff"
-                                  : palette.muted,
+                                  : palette.card,
                                 borderColor: active
                                   ? "#0a66c2"
                                   : palette.border,
@@ -657,7 +657,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -677,7 +677,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.input,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },
@@ -699,7 +699,7 @@ export function BecomeTeacherModal({
                         style={[
                           styles.textArea,
                           {
-                            backgroundColor: palette.muted,
+                            backgroundColor: palette.card,
                             borderColor: palette.border,
                             color: palette.text,
                           },

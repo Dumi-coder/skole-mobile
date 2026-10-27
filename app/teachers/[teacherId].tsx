@@ -213,7 +213,7 @@ export default function TeacherProfileScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                       borderColor: palette.border,
                     },
                   ]}
@@ -229,7 +229,7 @@ export default function TeacherProfileScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: palette.muted,
+                      backgroundColor: palette.card,
                       borderColor: palette.border,
                     },
                   ]}
@@ -319,7 +319,7 @@ export default function TeacherProfileScreen() {
               style={[
                 styles.tabRow,
                 {
-                  backgroundColor: palette.muted,
+                  backgroundColor: palette.subtleBg,
                   borderColor: palette.border,
                 },
               ]}
@@ -414,7 +414,7 @@ export default function TeacherProfileScreen() {
                             <View
                               style={[
                                 styles.feeBadge,
-                                { backgroundColor: palette.muted },
+                                { backgroundColor: palette.subtleBg },
                               ]}
                             >
                               <Text

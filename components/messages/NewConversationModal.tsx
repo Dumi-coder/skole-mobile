@@ -98,7 +98,7 @@ export function NewConversationModal({
           <View
             style={[
               styles.tabSelector,
-              { backgroundColor: palette.muted, borderColor: palette.border },
+              { backgroundColor: palette.subtleBg, borderColor: palette.border },
             ]}
           >
             <Pressable
@@ -159,7 +159,7 @@ export function NewConversationModal({
                 style={[
                   styles.searchInput,
                   {
-                    backgroundColor: palette.muted,
+                    backgroundColor: palette.card,
                     color: palette.text,
                     borderColor: palette.border,
                   },
@@ -184,7 +184,7 @@ export function NewConversationModal({
                       styles.contactRow,
                       {
                         borderBottomColor: palette.border,
-                        backgroundColor: pressed ? palette.muted : "transparent",
+                        backgroundColor: pressed ? palette.subtleBg : "transparent",
                       },
                     ]}
                   >
@@ -225,7 +225,7 @@ export function NewConversationModal({
                 style={[
                   styles.groupInput,
                   {
-                    backgroundColor: palette.muted,
+                    backgroundColor: palette.card,
                     color: palette.text,
                     borderColor: palette.border,
                   },
@@ -240,7 +240,7 @@ export function NewConversationModal({
                   {
                     backgroundColor: groupName.trim()
                       ? palette.tint
-                      : palette.muted,
+                      : palette.subtleBg,
                   },
                 ]}
               >

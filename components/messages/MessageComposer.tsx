@@ -86,7 +86,7 @@ export function MessageComposer({
           style={[
             styles.replyBanner,
             {
-              backgroundColor: palette.muted,
+              backgroundColor: palette.subtleBg,
               borderLeftColor: palette.tint,
             },
           ]}
@@ -134,7 +134,7 @@ export function MessageComposer({
           style={[
             styles.input,
             {
-              backgroundColor: palette.muted,
+              backgroundColor: palette.card,
               color: palette.text,
               borderColor: palette.border,
             },
@@ -147,7 +147,7 @@ export function MessageComposer({
           style={[
             styles.sendButton,
             {
-              backgroundColor: canSend ? palette.tint : palette.muted,
+              backgroundColor: canSend ? palette.tint : palette.subtleBg,
             },
           ]}
         >

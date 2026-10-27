@@ -222,7 +222,7 @@ export function TeacherProfileModal({
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: palette.muted,
+                        backgroundColor: palette.card,
                         borderColor: palette.border,
                       },
                     ]}
@@ -238,7 +238,7 @@ export function TeacherProfileModal({
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: palette.muted,
+                        backgroundColor: palette.card,
                         borderColor: palette.border,
                       },
                     ]}
@@ -254,7 +254,7 @@ export function TeacherProfileModal({
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: palette.muted,
+                        backgroundColor: palette.card,
                         borderColor: palette.border,
                       },
                     ]}
@@ -421,7 +421,7 @@ export function TeacherProfileModal({
                       <View
                         style={[
                           styles.feeBadge,
-                          { backgroundColor: palette.muted },
+                          { backgroundColor: palette.subtleBg },
                         ]}
                       >
                         <Text
@@ -576,7 +576,7 @@ export function TeacherProfileModal({
                       style={[
                         styles.downloadBtn,
                         {
-                          backgroundColor: palette.muted,
+                          backgroundColor: palette.card,
                           borderColor: palette.border,
                         },
                       ]}
