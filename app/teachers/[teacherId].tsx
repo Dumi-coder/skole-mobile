@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -20,9 +22,9 @@ import {
   type TeacherClassItem,
   type TeacherProfileData,
 } from "@/services/api";
-import { ProfileAvatar } from "@/components/messages/ProfileAvatar";
+import { Avatar } from "@/components/ui/Avatar";
 
-type ProfileTab = "classes" | "about" | "qualifications" | "materials";
+type ProfileTab = "classes" | "about" | "qualifications" | "materials" | "updates";
 
 export default function TeacherProfileScreen() {
   const { teacherId } = useLocalSearchParams<{ teacherId: string }>();
@@ -33,6 +35,8 @@ export default function TeacherProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProfileTab>("classes");
   const [enrolledMap, setEnrolledMap] = useState<Record<string, boolean>>({});
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [messagingLoading, setMessagingLoading] = useState(false);
 
   useEffect(() => {
     if (!teacherId) return;
@@ -52,10 +56,12 @@ export default function TeacherProfileScreen() {
           setLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (isMounted) {
           setLoading(false);
-          Alert.alert("Error", "Could not load teacher profile");
+          const message =
+            err instanceof Error ? err.message : "Could not load teacher profile";
+          Alert.alert("Notice", message);
         }
       });
 
@@ -64,23 +70,75 @@ export default function TeacherProfileScreen() {
     };
   }, [teacherId]);
 
-  const handleToggleEnroll = (classItem: TeacherClassItem) => {
-    const isEnrolled = enrolledMap[classItem.id];
-    setEnrolledMap((prev) => ({
-      ...prev,
-      [classItem.id]: !isEnrolled,
-    }));
+  const handleToggleEnroll = async (classItem: TeacherClassItem) => {
+    const isEnrolled = Boolean(enrolledMap[classItem.id]);
+    if (isEnrolled) {
+      Alert.alert(
+        "Already Enrolled",
+        `You are enrolled in ${classItem.name}. You can access class links and materials in your schedule.`,
+      );
+      return;
+    }
 
-    Alert.alert(
-      isEnrolled ? "Unenrolled" : "Enrolled Successfully",
-      isEnrolled
-        ? `You have removed enrollment for ${classItem.name}.`
-        : `You are now enrolled in ${classItem.name}. Notifications and live links will appear in your schedule.`,
-    );
+    try {
+      setEnrollingId(classItem.id);
+      await teachersApi.enrollInClass(classItem.id);
+      setEnrolledMap((prev) => ({
+        ...prev,
+        [classItem.id]: true,
+      }));
+      Alert.alert(
+        "Enrolled Successfully!",
+        `You have enrolled in ${classItem.name}.`,
+      );
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to complete enrollment.";
+      Alert.alert("Enrollment", msg);
+    } finally {
+      setEnrollingId(null);
+    }
   };
 
-  const handleMessageTeacher = () => {
+  const handleOpenMaterial = async (fileUrl?: string | null) => {
+    if (!fileUrl) {
+      Alert.alert("Resource", "This resource does not have an attached link.");
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(fileUrl);
+      if (supported) {
+        await Linking.openURL(fileUrl);
+      } else {
+        Alert.alert("Resource", "Cannot open resource link.");
+      }
+    } catch {
+      Alert.alert("Resource", "Failed to open resource link.");
+    }
+  };
+
+  const handleMessageTeacher = async () => {
     if (!profile) return;
+    try {
+      setMessagingLoading(true);
+      const conv = await teachersApi.getDirectConversation(profile.id);
+      if (conv?.id) {
+        router.push({
+          pathname: "/(tabs)/messages",
+          params: {
+            conversationId: conv.id,
+            peerId: profile.id,
+          },
+        });
+        return;
+      }
+    } catch {
+      // Fallback: navigate with params so messages screen initiates chat
+    } finally {
+      setMessagingLoading(false);
+    }
+
     router.push({
       pathname: "/(tabs)/messages",
       params: {
@@ -89,6 +147,25 @@ export default function TeacherProfileScreen() {
       },
     });
   };
+
+  const initials = profile?.name
+    ? profile.name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() || "")
+        .join("")
+    : "T";
+
+  const tabs: { id: ProfileTab; label: string }[] = [
+    { id: "classes", label: `Classes (${profile?.classes.length ?? 0})` },
+    { id: "about", label: "About" },
+    { id: "qualifications", label: "Credentials" },
+    { id: "materials", label: `Materials (${profile?.materials.length ?? 0})` },
+  ];
+
+  if (profile?.posts && profile.posts.length > 0) {
+    tabs.push({ id: "updates", label: `Updates (${profile.posts.length})` });
+  }
 
   return (
     <SafeAreaView
@@ -142,15 +219,23 @@ export default function TeacherProfileScreen() {
         >
           {/* Cover Banner */}
           <View style={styles.bannerContainer}>
-            <View
-              style={[
-                styles.coverBanner,
-                {
-                  backgroundColor:
-                    colorScheme === "dark" ? "#1e293b" : "#e2e8f0",
-                },
-              ]}
-            />
+            {profile.bannerUrl ? (
+              <Image
+                source={{ uri: profile.bannerUrl }}
+                style={styles.coverBanner}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.coverBanner,
+                  {
+                    backgroundColor:
+                      colorScheme === "dark" ? "#1e293b" : "#e2e8f0",
+                  },
+                ]}
+              />
+            )}
           </View>
 
           {/* Profile Bar (Avatar + Message Action) */}
@@ -161,25 +246,40 @@ export default function TeacherProfileScreen() {
                 { borderColor: palette.background },
               ]}
             >
-              <ProfileAvatar name={profile.name} size={76} />
+              <Avatar
+                label={initials}
+                imageUrl={profile.avatarUrl}
+                size={76}
+                verified={profile.verified}
+              />
             </View>
 
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Message Teacher"
               onPress={handleMessageTeacher}
-              style={[styles.messageBtn, { backgroundColor: palette.tint }]}
+              disabled={messagingLoading}
+              style={[
+                styles.messageBtn,
+                { backgroundColor: palette.tint, opacity: messagingLoading ? 0.7 : 1 },
+              ]}
             >
-              <SymbolView
-                name={{
-                  ios: "bubble.left.fill",
-                  android: "message",
-                  web: "message",
-                }}
-                tintColor="#ffffff"
-                size={16}
-              />
-              <Text style={styles.messageBtnText}>Message Teacher</Text>
+              {messagingLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <SymbolView
+                  name={{
+                    ios: "bubble.left.fill",
+                    android: "message",
+                    web: "message",
+                  }}
+                  tintColor="#ffffff"
+                  size={16}
+                />
+              )}
+              <Text style={styles.messageBtnText}>
+                {messagingLoading ? "Opening..." : "Message"}
+              </Text>
             </Pressable>
           </View>
 
@@ -199,7 +299,7 @@ export default function TeacherProfileScreen() {
                       web: "check",
                     }}
                     tintColor="#0a66c2"
-                    size={18}
+                    size={20}
                   />
                 </View>
               )}
@@ -242,23 +342,27 @@ export default function TeacherProfileScreen() {
             </View>
 
             {/* Locations & Medium */}
-            <View style={styles.locationRow}>
-              <SymbolView
-                name={{
-                  ios: "mappin.circle.fill",
-                  android: "location_on",
-                  web: "location_on",
-                }}
-                tintColor={palette.mutedText}
-                size={16}
-              />
-              <Text
-                style={[styles.locationText, { color: palette.mutedText }]}
-              >
-                {profile.locations.join(", ")} •{" "}
-                {profile.mediums?.join(", ") ?? "English"} Medium
-              </Text>
-            </View>
+            {profile.locations.length > 0 ? (
+              <View style={styles.locationRow}>
+                <SymbolView
+                  name={{
+                    ios: "mappin.circle.fill",
+                    android: "location_on",
+                    web: "location_on",
+                  }}
+                  tintColor={palette.mutedText}
+                  size={16}
+                />
+                <Text
+                  style={[styles.locationText, { color: palette.mutedText }]}
+                >
+                  {profile.locations.join(" • ")}
+                  {profile.mediums.length > 0
+                    ? ` • ${profile.mediums.join(", ")} Medium`
+                    : ""}
+                </Text>
+              </View>
+            ) : null}
 
             {/* Key Stats Bar */}
             <View
@@ -272,12 +376,12 @@ export default function TeacherProfileScreen() {
             >
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: palette.text }]}>
-                  4.9 ★
+                  {profile.verified ? "Verified" : "Teacher"}
                 </Text>
                 <Text
                   style={[styles.statLabel, { color: palette.mutedText }]}
                 >
-                  38 Reviews
+                  Status
                 </Text>
               </View>
               <View
@@ -304,12 +408,12 @@ export default function TeacherProfileScreen() {
               />
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: palette.text }]}>
-                  {profile.hourlyRate ?? "LKR 3,000"}
+                  {profile.hourlyRate ?? (profile.classes[0]?.fee || "On Request")}
                 </Text>
                 <Text
                   style={[styles.statLabel, { color: palette.mutedText }]}
                 >
-                  Hourly Rate
+                  Fee
                 </Text>
               </View>
             </View>
@@ -324,14 +428,7 @@ export default function TeacherProfileScreen() {
                 },
               ]}
             >
-              {(
-                [
-                  { id: "classes", label: "Classes" },
-                  { id: "about", label: "About" },
-                  { id: "qualifications", label: "Credentials" },
-                  { id: "materials", label: "Materials" },
-                ] as const
-              ).map((tab) => {
+              {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
                   <Pressable
@@ -378,6 +475,7 @@ export default function TeacherProfileScreen() {
                 ) : (
                   profile.classes.map((c) => {
                     const isEnrolled = Boolean(enrolledMap[c.id]);
+                    const isPending = enrollingId === c.id;
                     return (
                       <View
                         key={c.id}
@@ -461,10 +559,16 @@ export default function TeacherProfileScreen() {
                             ]}
                           >
                             {c.enrolledCount ?? 0} enrolled
+                            {c.maxStudents ? ` / ${c.maxStudents} max` : ""}
+                            {" • "}
+                            {c.deliveryType === "group"
+                              ? "Group Class"
+                              : "Individual Mentoring"}
                           </Text>
 
                           <Pressable
                             onPress={() => handleToggleEnroll(c)}
+                            disabled={isPending || isEnrolled}
                             style={[
                               styles.enrollBtn,
                               isEnrolled
@@ -475,18 +579,22 @@ export default function TeacherProfileScreen() {
                                 : { backgroundColor: palette.tint },
                             ]}
                           >
-                            <Text
-                              style={[
-                                styles.enrollBtnText,
-                                {
-                                  color: isEnrolled
-                                    ? palette.tint
-                                    : "#ffffff",
-                                },
-                              ]}
-                            >
-                              {isEnrolled ? "✓ Enrolled" : "Enroll in Class"}
-                            </Text>
+                            {isPending ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <Text
+                                style={[
+                                  styles.enrollBtnText,
+                                  {
+                                    color: isEnrolled
+                                      ? palette.tint
+                                      : "#ffffff",
+                                  },
+                                ]}
+                              >
+                                {isEnrolled ? "✓ Enrolled" : "Enroll"}
+                              </Text>
+                            )}
                           </Pressable>
                         </View>
                       </View>
@@ -518,11 +626,11 @@ export default function TeacherProfileScreen() {
                     ]}
                   >
                     {profile.bio ||
-                      "Dedicated educator focused on helping students master fundamentals and excel in examinations."}
+                      "Certified and verified educator on the sKole learning platform."}
                   </Text>
                 </View>
 
-                {profile.experience && (
+                {profile.experience ? (
                   <View
                     style={[
                       styles.cardSection,
@@ -535,7 +643,7 @@ export default function TeacherProfileScreen() {
                     <Text
                       style={[styles.sectionTitle, { color: palette.text }]}
                     >
-                      Teaching Experience
+                      Teaching Experience & Faculty
                     </Text>
                     <Text
                       style={[
@@ -546,7 +654,44 @@ export default function TeacherProfileScreen() {
                       {profile.experience}
                     </Text>
                   </View>
-                )}
+                ) : null}
+
+                {/* A/L Results if verified on profile */}
+                {profile.alResults && profile.alResults.length > 0 ? (
+                  <View
+                    style={[
+                      styles.cardSection,
+                      {
+                        backgroundColor: palette.card,
+                        borderColor: palette.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.sectionTitle, { color: palette.text }]}
+                    >
+                      G.C.E. A/L Examination Results
+                    </Text>
+                    <View style={styles.alResultsGrid}>
+                      {profile.alResults.map((result, idx) => (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.alResultItem,
+                            { backgroundColor: palette.subtleBg, borderColor: palette.border },
+                          ]}
+                        >
+                          <Text style={[styles.alResultSubject, { color: palette.text }]}>
+                            {result.subject}
+                          </Text>
+                          <View style={styles.alGradeBadge}>
+                            <Text style={styles.alGradeText}>{result.grade}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
               </View>
             )}
 
@@ -563,14 +708,46 @@ export default function TeacherProfileScreen() {
                   ]}
                 >
                   <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                    Academic Background
+                    Academic Background & Qualifications
                   </Text>
 
-                  {profile.degreeName ? (
+                  {/* Undergraduate Degree */}
+                  {profile.undergradDegreeName ? (
                     <View style={styles.qualRow}>
                       <SymbolView
                         name={{
                           ios: "graduationcap.fill",
+                          android: "school",
+                          web: "school",
+                        }}
+                        tintColor={palette.tint}
+                        size={20}
+                      />
+                      <View style={styles.qualInfo}>
+                        <Text
+                          style={[styles.qualTitle, { color: palette.text }]}
+                        >
+                          {profile.undergradDegreeName}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.qualSub,
+                            { color: palette.mutedText },
+                          ]}
+                        >
+                          {profile.universityName || "University"}
+                          {profile.facultyName ? ` • Faculty of ${profile.facultyName}` : ""}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {/* Postgraduate / Graduate Degree */}
+                  {profile.degreeName ? (
+                    <View style={[styles.qualRow, profile.undergradDegreeName ? { marginTop: 14 } : null]}>
+                      <SymbolView
+                        name={{
+                          ios: "graduationcap",
                           android: "school",
                           web: "school",
                         }}
@@ -589,24 +766,15 @@ export default function TeacherProfileScreen() {
                             { color: palette.mutedText },
                           ]}
                         >
-                          {profile.universityName ||
-                            "National University of Sri Lanka"}
+                          {profile.universityName || "Accredited University"}
                         </Text>
                       </View>
                     </View>
-                  ) : (
-                    <Text
-                      style={[
-                        styles.sectionBodyText,
-                        { color: palette.mutedText },
-                      ]}
-                    >
-                      Bachelor of Science • Certified Teacher
-                    </Text>
-                  )}
+                  ) : null}
 
-                  {profile.diplomaName && (
-                    <View style={[styles.qualRow, { marginTop: 12 }]}>
+                  {/* Diploma / Certifications */}
+                  {profile.diplomaName ? (
+                    <View style={[styles.qualRow, { marginTop: 14 }]}>
                       <SymbolView
                         name={{
                           ios: "rosette",
@@ -628,11 +796,22 @@ export default function TeacherProfileScreen() {
                             { color: palette.mutedText },
                           ]}
                         >
-                          Educational Institute
+                          Diploma / Professional Qualification
                         </Text>
                       </View>
                     </View>
-                  )}
+                  ) : null}
+
+                  {!profile.degreeName && !profile.undergradDegreeName && !profile.diplomaName ? (
+                    <Text
+                      style={[
+                        styles.sectionBodyText,
+                        { color: palette.mutedText },
+                      ]}
+                    >
+                      Verified teacher credentials on record with sKole.
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             )}
@@ -688,8 +867,92 @@ export default function TeacherProfileScreen() {
                           ]}
                         >
                           {mat.grade} • {mat.subject}
+                          {mat.year ? ` • ${mat.year}` : ""}
                         </Text>
                       </View>
+
+                      {mat.fileUrl ? (
+                        <Pressable
+                          hitSlop={8}
+                          onPress={() => handleOpenMaterial(mat.fileUrl)}
+                          style={[
+                            styles.downloadBtn,
+                            { backgroundColor: palette.subtleBg, borderColor: palette.border },
+                          ]}
+                        >
+                          <SymbolView
+                            name={{
+                              ios: "arrow.down.circle.fill",
+                              android: "download",
+                              web: "download",
+                            }}
+                            tintColor={palette.tint}
+                            size={16}
+                          />
+                          <Text style={[styles.downloadBtnText, { color: palette.text }]}>
+                            View
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+
+            {/* Tab 5: Updates (Feed Posts) */}
+            {activeTab === "updates" && profile.posts && (
+              <View style={styles.tabContent}>
+                {profile.posts.length === 0 ? (
+                  <View style={styles.emptyCard}>
+                    <Text
+                      style={[
+                        styles.emptyCardText,
+                        { color: palette.mutedText },
+                      ]}
+                    >
+                      No updates posted yet.
+                    </Text>
+                  </View>
+                ) : (
+                  profile.posts.map((post) => (
+                    <View
+                      key={post.id}
+                      style={[
+                        styles.postCard,
+                        {
+                          backgroundColor: palette.card,
+                          borderColor: palette.border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.postHeader}>
+                        <Text
+                          style={[styles.postTitle, { color: palette.text }]}
+                        >
+                          {post.title}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.postTime,
+                            { color: palette.mutedText },
+                          ]}
+                        >
+                          {post.time}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[styles.postBody, { color: palette.text }]}
+                      >
+                        {post.body}
+                      </Text>
+                      {post.mediaUrl ? (
+                        <Image
+                          source={{ uri: post.mediaUrl }}
+                          style={styles.postImage}
+                          resizeMode="cover"
+                        />
+                      ) : null}
                     </View>
                   ))
                 )}
@@ -787,6 +1050,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     fontWeight: "800",
+    textTransform: "capitalize",
   },
   verifiedBadge: {
     paddingTop: 2,
@@ -866,7 +1130,7 @@ const styles = StyleSheet.create({
     }),
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 11,
   },
   tabContent: {
     gap: 12,
@@ -918,11 +1182,14 @@ const styles = StyleSheet.create({
   },
   capacityText: {
     fontSize: 12,
+    flex: 1,
   },
   enrollBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
+    minWidth: 80,
+    alignItems: "center",
   },
   enrollBtnActive: {
     backgroundColor: "transparent",
@@ -945,6 +1212,36 @@ const styles = StyleSheet.create({
   sectionBodyText: {
     fontSize: 13,
     lineHeight: 20,
+  },
+  alResultsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+  },
+  alResultItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  alResultSubject: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  alGradeBadge: {
+    backgroundColor: "#0a66c2",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  alGradeText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "800",
   },
   qualRow: {
     flexDirection: "row",
@@ -974,6 +1271,47 @@ const styles = StyleSheet.create({
   materialSub: {
     fontSize: 12,
     marginTop: 2,
+  },
+  downloadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  downloadBtnText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  postCard: {
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  postHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  postTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  postTime: {
+    fontSize: 11,
+  },
+  postBody: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  postImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: 8,
+    marginTop: 8,
   },
   emptyCard: {
     padding: 24,

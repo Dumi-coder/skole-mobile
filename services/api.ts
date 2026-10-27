@@ -4,6 +4,8 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
+import { formatCompactTime } from "@/lib/date";
+import { resolveAssetUrl } from "@/lib/media";
 
 export type AppRole = "admin" | "student" | "teacher";
 
@@ -641,23 +643,7 @@ export async function signInWithGoogle(idToken: string): Promise<AppSession> {
 // -------------------------------------------------------------
 
 function calculateTimeLabel(isoString: string | null | undefined): string {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return "Now";
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  } catch {
-    return "";
-  }
+  return formatCompactTime(isoString);
 }
 
 export const chatApi = {
@@ -1014,7 +1000,7 @@ export type TeacherClassItem = {
   name: string;
   subject: string;
   grade: string;
-  medium: "English" | "Sinhala" | "Tamil";
+  medium: string;
   deliveryType: "group" | "individual";
   schedule: string;
   fee: string;
@@ -1032,6 +1018,19 @@ export type TeacherMaterialItem = {
   fileUrl?: string | null;
 };
 
+export type TeacherPostItem = {
+  id: string;
+  title: string;
+  body: string;
+  time: string;
+  mediaUrl?: string | null;
+};
+
+export type TeacherAlResultItem = {
+  subject: string;
+  grade: string;
+};
+
 export type TeacherProfileData = {
   id: string;
   name: string;
@@ -1045,296 +1044,203 @@ export type TeacherProfileData = {
   mediums: string[];
   locations: string[];
   degreeName?: string | null;
+  undergradDegreeName?: string | null;
   universityName?: string | null;
   diplomaName?: string | null;
+  facultyName?: string | null;
   experience?: string | null;
+  alResults?: TeacherAlResultItem[];
   classes: TeacherClassItem[];
   materials: TeacherMaterialItem[];
-  posts?: Array<{
-    id: string;
-    title: string;
-    body: string;
-    time: string;
-  }>;
+  posts?: TeacherPostItem[];
 };
 
-const teacherProfilesRegistry: Record<string, TeacherProfileData> = {
-  t1: {
-    id: "t1",
-    name: "Dumi Perera",
-    bio: "Senior Mathematics Lecturer & Tutor with over 8 years of experience helping Sri Lankan students achieve Island Ranks in G.C.E. A/L Combined Mathematics. Specializes in Pure Calculus & Mechanics.",
-    hourlyRate: "LKR 3,500 / hr",
-    verified: true,
-    grades: ["A/L", "O/L", "Revision"],
-    subjects: ["Combined Maths", "Pure Mathematics", "Applied Mathematics"],
-    mediums: ["English", "Sinhala"],
-    locations: ["Colombo", "Nugegoda", "Online"],
-    degreeName: "B.Sc. (Hons) in Mathematics",
-    universityName: "University of Colombo",
-    diplomaName: "Postgraduate Diploma in Education (PGDE)",
-    experience: "8+ Years Teaching G.C.E. A/L",
-    classes: [
-      {
-        id: "c-t1-1",
-        name: "2026 A/L Combined Maths Theory & Sprint",
-        subject: "Combined Mathematics",
-        grade: "2026 A/L",
-        medium: "English",
-        deliveryType: "group",
-        schedule: "Every Saturday • 8:00 AM - 12:00 PM",
-        fee: "LKR 3,000 / month",
-        enrolledCount: 142,
-        maxStudents: 200,
-        isEnrolled: true,
-      },
-      {
-        id: "c-t1-2",
-        name: "A/L Integration & Calculus Fast-Track",
-        subject: "Pure Mathematics",
-        grade: "2025/2026 A/L",
-        medium: "English",
-        deliveryType: "individual",
-        schedule: "Flexible Times • 2 Sessions / Week",
-        fee: "LKR 4,500 / session",
-        enrolledCount: 8,
-        maxStudents: 10,
-        isEnrolled: false,
-      },
-      {
-        id: "c-t1-3",
-        name: "Past Paper Intensive Review & Model Exams",
-        subject: "Combined Mathematics",
-        grade: "2025 A/L",
-        medium: "Sinhala",
-        deliveryType: "group",
-        schedule: "Sundays • 1:00 PM - 4:30 PM",
-        fee: "LKR 2,500 / month",
-        enrolledCount: 98,
-        maxStudents: 150,
-        isEnrolled: false,
-      },
-    ],
-    materials: [
-      {
-        id: "mat-1",
-        title: "2024 G.C.E. A/L Combined Maths Model Paper 1 (With Marking Scheme)",
-        grade: "A/L",
-        subject: "Combined Maths",
-        year: "2024",
-      },
-      {
-        id: "mat-2",
-        title: "Calculus Summary Handbook & Standard Formula Derivatives",
-        grade: "A/L",
-        subject: "Pure Maths",
-        year: "2024",
-      },
-      {
-        id: "mat-3",
-        title: "2023 Colombo District Term Test Paper (English Medium)",
-        grade: "A/L",
-        subject: "Combined Maths",
-        year: "2023",
-      },
-    ],
-    posts: [
-      {
-        id: "post-t1-1",
-        title: "Key Formula Sheet Uploaded!",
-        body: "I've uploaded the comprehensive integration substitution summary to the Papers tab. Make sure to download and work through the 10 practice questions before Friday.",
-        time: "1d ago",
-      },
-      {
-        id: "post-t1-2",
-        title: "Reminder: Model Paper Discussion this Saturday",
-        body: "All students registered for the Sprint class, please bring your completed draft of Paper II to Saturday's session at 8:00 AM.",
-        time: "3d ago",
-      },
-    ],
-  },
-  t2: {
-    id: "t2",
-    name: "Nimal Fernando",
-    bio: "Passionate Physics Educator specializing in O/L Science and A/L Physics mechanics, electric circuits, and electronics. Practical-oriented learning methodology.",
-    hourlyRate: "LKR 2,800 / hr",
-    verified: true,
-    grades: ["O/L", "A/L"],
-    subjects: ["Physics", "General Science"],
-    mediums: ["Sinhala", "English"],
-    locations: ["Kandy", "Peradeniya", "Online"],
-    degreeName: "B.Sc. in Physical Science",
-    universityName: "University of Peradeniya",
-    diplomaName: "National Diploma in Technology (NDT)",
-    experience: "6 Years Teaching Experience",
-    classes: [
-      {
-        id: "c-t2-1",
-        name: "O/L Science (Physics & Chemistry) Masterclass",
-        subject: "Science",
-        grade: "Grade 11 (O/L)",
-        medium: "Sinhala",
-        deliveryType: "group",
-        schedule: "Wednesdays • 4:00 PM - 6:30 PM",
-        fee: "LKR 2,000 / month",
-        enrolledCount: 65,
-        maxStudents: 100,
-        isEnrolled: false,
-      },
-      {
-        id: "c-t2-2",
-        name: "A/L Electricity & Magnetism Unit Sprint",
-        subject: "Physics",
-        grade: "2026 A/L",
-        medium: "English",
-        deliveryType: "group",
-        schedule: "Sundays • 8:30 AM - 11:30 AM",
-        fee: "LKR 2,800 / month",
-        enrolledCount: 42,
-        maxStudents: 80,
-        isEnrolled: false,
-      },
-    ],
-    materials: [
-      {
-        id: "mat-t2-1",
-        title: "O/L Science Physics Units Revision Note & MCQs",
-        grade: "O/L",
-        subject: "Science",
-        year: "2024",
-      },
-    ],
-  },
-  t3: {
-    id: "t3",
-    name: "Sajini Weerasinghe",
-    bio: "Biology Specialist & Medical Student Mentor. Focuses on cellular biology, genetics, and plant physiology with visual diagrams and past paper techniques.",
-    hourlyRate: "LKR 3,000 / hr",
-    verified: true,
-    grades: ["A/L"],
-    subjects: ["Biology", "Applied Genetics"],
-    mediums: ["Tamil", "English"],
-    locations: ["Galle", "Matara", "Online"],
-    degreeName: "B.Sc. in Biological Science",
-    universityName: "University of Ruhuna",
-    experience: "5 Years A/L Biology Teaching",
-    classes: [
-      {
-        id: "c-t3-1",
-        name: "A/L Biology Complete Syllabus Revision",
-        subject: "Biology",
-        grade: "2025/2026 A/L",
-        medium: "Tamil",
-        deliveryType: "group",
-        schedule: "Saturdays • 2:00 PM - 5:30 PM",
-        fee: "LKR 2,800 / month",
-        enrolledCount: 54,
-        maxStudents: 75,
-        isEnrolled: false,
-      },
-    ],
-    materials: [
-      {
-        id: "mat-t3-1",
-        title: "Genetics & Molecular Biology Structure Essay Question Set",
-        grade: "A/L",
-        subject: "Biology",
-        year: "2024",
-      },
-    ],
-  },
-};
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+function formatClassSchedule(cls: {
+  scheduleKind?: "fixed" | "recurring" | null;
+  slots?: Array<{ dayOfWeek: number; startTime: string; endTime: string | null }>;
+  classDate?: string | null;
+  classTime?: string | null;
+  classEndTime?: string | null;
+}): string {
+  if (cls.slots && cls.slots.length > 0) {
+    return cls.slots
+      .map((s) => {
+        const day = DAY_NAMES[s.dayOfWeek] ?? `Day ${s.dayOfWeek}`;
+        return s.endTime
+          ? `${day}s • ${s.startTime} - ${s.endTime}`
+          : `${day}s • ${s.startTime}`;
+      })
+      .join("; ");
+  }
+  if (cls.classDate) {
+    const timePart = cls.classTime
+      ? ` • ${cls.classTime}${cls.classEndTime ? ` - ${cls.classEndTime}` : ""}`
+      : "";
+    return `${cls.classDate}${timePart}`;
+  }
+  return "Schedule on request";
+}
+
+function formatClassFee(cls: {
+  paymentAmount?: number;
+  paymentType?: "per_hour" | "per_class" | "per_month";
+}): string {
+  const amount = cls.paymentAmount ?? 0;
+  if (!amount) return "Free";
+  const formattedAmount = `LKR ${amount.toLocaleString()}`;
+  switch (cls.paymentType) {
+    case "per_hour":
+      return `${formattedAmount} / hr`;
+    case "per_month":
+      return `${formattedAmount} / month`;
+    case "per_class":
+      return `${formattedAmount} / session`;
+    default:
+      return formattedAmount;
+  }
+}
 
 export const teachersApi = {
   /**
-   * Fetches public teacher profile matching web application contract
+   * Fetches public teacher profile directly from the backend database.
    */
   async getTeacherProfile(teacherId: string): Promise<TeacherProfileData> {
-    const candidatePaths = [
-      `/teachers/${teacherId}`,
-      `/v1/teachers/${teacherId}`,
-    ];
+    const profile = await baseApiClient.getPublicTeacherProfile(teacherId);
+    if (!profile) {
+      throw new Error("Teacher profile not found.");
+    }
 
-    for (const path of candidatePaths) {
+    const [classesRes, materialsRes, feedRes] = await Promise.allSettled([
+      baseApiClient.getTeacherClasses(teacherId, { limit: 50, offset: 0 }),
+      baseApiClient.searchMaterials({ teacherId, limit: 50, offset: 0 }),
+      baseApiClient.getFeed({ teacherId, limit: 10, offset: 0 }),
+    ]);
+
+    const rawClasses =
+      classesRes.status === "fulfilled" ? classesRes.value.items : [];
+    const rawMaterials =
+      materialsRes.status === "fulfilled" ? materialsRes.value.materials : [];
+    const rawPosts =
+      feedRes.status === "fulfilled" ? feedRes.value.posts : [];
+
+    // Fetch enrollment state if user has active session
+    let enrolledClassIds = new Set<string>();
+    let enrollmentCounts: Record<string, number> = {};
+    if (rawClasses.length > 0) {
       try {
-        const response = await fetch(`${apiBaseUrl}${path}`, {
-          method: "GET",
-          credentials: "include",
-          headers: { accept: "application/json" },
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as Partial<TeacherProfileData>;
-          if (data && data.name) {
-            return {
-              id: data.id || teacherId,
-              name: data.name,
-              avatarUrl: data.avatarUrl,
-              bannerUrl: data.bannerUrl,
-              bio: data.bio || "Certified teacher on sKole.",
-              hourlyRate: data.hourlyRate,
-              verified: data.verified ?? true,
-              grades: data.grades || ["A/L", "O/L"],
-              subjects: data.subjects || ["General"],
-              mediums: data.mediums || ["English", "Sinhala"],
-              locations: data.locations || ["Colombo"],
-              degreeName: data.degreeName,
-              universityName: data.universityName,
-              diplomaName: data.diplomaName,
-              experience: data.experience,
-              classes: data.classes || [],
-              materials: data.materials || [],
-              posts: data.posts || [],
-            };
-          }
+        const classIds = rawClasses.map((c) => c.id);
+        const enrollmentState = await baseApiClient.getEnrollmentState(
+          classIds,
+          "cookie-session",
+        );
+        if (enrollmentState) {
+          enrolledClassIds = new Set(enrollmentState.enrolledClassIds);
+          enrollmentCounts = enrollmentState.enrollmentCounts;
         }
       } catch {
-        // Backend not reached, proceed to registry
+        // Not logged in or enrollment state check omitted
       }
     }
 
-    // Fallback from registry or generate consistent fallback
-    if (teacherProfilesRegistry[teacherId]) {
-      return teacherProfilesRegistry[teacherId];
-    }
+    const classes: TeacherClassItem[] = rawClasses.map((c) => ({
+      id: c.id,
+      name:
+        c.name ||
+        `${c.gradeName ?? ""} ${c.subjectName ?? ""}`.trim() ||
+        "Class Session",
+      subject: c.subjectName || "General",
+      grade: c.gradeName || "All Grades",
+      medium: c.medium
+        ? `${c.medium.charAt(0).toUpperCase()}${c.medium.slice(1)}`
+        : "English",
+      deliveryType: c.deliveryType,
+      schedule: formatClassSchedule(c),
+      fee: formatClassFee(c),
+      enrolledCount: enrollmentCounts[c.id] ?? c.enrolledStudentCount ?? 0,
+      maxStudents: c.maxStudents ?? undefined,
+      isEnrolled: enrolledClassIds.has(c.id),
+    }));
 
-    // Default template for any teacher ID
+    const materials: TeacherMaterialItem[] = rawMaterials.map((m) => ({
+      id: m.id,
+      title: m.title,
+      grade: m.grade,
+      subject: m.subject,
+      year: m.year ? String(m.year) : undefined,
+      fileUrl: m.fileUrl,
+    }));
+
+    const posts: TeacherPostItem[] = rawPosts.map((p) => {
+      const assetUrl = (p as any).assets?.[0]?.url;
+      return {
+        id: p.id,
+        title: p.teachingMeta || "Teacher Update",
+        body: p.content,
+        time: calculateTimeLabel(p.createdAt),
+        mediaUrl: assetUrl ? resolveAssetUrl(assetUrl) : null,
+      };
+    });
+
+    // Mediums from classes
+    const mediumsSet = new Set<string>();
+    classes.forEach((c) => {
+      if (c.medium) mediumsSet.add(c.medium);
+    });
+    const mediums =
+      mediumsSet.size > 0 ? Array.from(mediumsSet) : ["English", "Sinhala"];
+
+    const hourlyClass = classes.find((c) => c.fee.includes("/ hr"));
+    const hourlyRate = hourlyClass ? hourlyClass.fee : null;
+
     return {
-      id: teacherId,
-      name: teacherId.replace(/-/g, " "),
-      bio: "Certified and verified educator on the sKole learning platform.",
-      hourlyRate: "LKR 3,000 / hr",
-      verified: true,
-      grades: ["A/L", "O/L"],
-      subjects: ["Mathematics", "Science"],
-      mediums: ["English", "Sinhala"],
-      locations: ["Colombo", "Online"],
-      degreeName: "Bachelor of Science",
-      universityName: "National University of Sri Lanka",
-      experience: "5+ Years Educational Experience",
-      classes: [
-        {
-          id: `class-${teacherId}-1`,
-          name: "Standard Revision & Past Paper Batch",
-          subject: "Science & Mathematics",
-          grade: "A/L & O/L",
-          medium: "English",
-          deliveryType: "group",
-          schedule: "Saturdays • 9:00 AM - 12:00 PM",
-          fee: "LKR 2,500 / month",
-          enrolledCount: 30,
-          maxStudents: 50,
-          isEnrolled: false,
-        },
-      ],
-      materials: [
-        {
-          id: `mat-${teacherId}-1`,
-          title: "Comprehensive Past Paper Revision Guide & Marking Scheme",
-          grade: "A/L",
-          subject: "Subject Guide",
-        },
-      ],
+      id: profile.id,
+      name: profile.name,
+      avatarUrl: profile.avatarUrl ? resolveAssetUrl(profile.avatarUrl) : null,
+      bannerUrl: profile.bannerUrl ? resolveAssetUrl(profile.bannerUrl) : null,
+      bio: profile.bio,
+      hourlyRate,
+      verified: profile.verified,
+      grades: profile.grades ?? [],
+      subjects: profile.subjects ?? [],
+      mediums,
+      locations: profile.locations ?? [],
+      degreeName: profile.degreeName,
+      undergradDegreeName: profile.undergradDegreeName,
+      universityName: profile.universityName,
+      diplomaName: profile.diplomaName,
+      facultyName: profile.facultyName,
+      experience: profile.facultyName
+        ? `Faculty of ${profile.facultyName}`
+        : null,
+      alResults: profile.alResults ?? [],
+      classes,
+      materials,
+      posts,
     };
+  },
+
+  /**
+   * Enrolls in a teacher's class.
+   */
+  async enrollInClass(classId: string): Promise<{ id: string }> {
+    return baseApiClient.enrollInClass(classId, "cookie-session");
+  },
+
+  /**
+   * Starts or returns an existing direct conversation with a teacher.
+   */
+  async getDirectConversation(teacherId: string): Promise<{ id: string }> {
+    return baseApiClient.getDirectConversation(teacherId, "cookie-session");
   },
 };
 

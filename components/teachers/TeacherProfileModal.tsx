@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -76,26 +77,43 @@ export function TeacherProfileModal({
 
   if (!visible) return null;
 
-  const handleToggleEnroll = (classItem: TeacherClassItem) => {
-    const isEnrolled = enrolledMap[classItem.id];
-    setEnrolledMap((prev) => ({
-      ...prev,
-      [classItem.id]: !isEnrolled,
-    }));
+  const handleToggleEnroll = async (classItem: TeacherClassItem) => {
+    const isEnrolled = Boolean(enrolledMap[classItem.id]);
+    if (isEnrolled) {
+      Alert.alert(
+        "Already Enrolled",
+        `You are enrolled in ${classItem.name}.`,
+      );
+      return;
+    }
 
-    if (!isEnrolled) {
+    try {
+      await teachersApi.enrollInClass(classItem.id);
+      setEnrolledMap((prev) => ({
+        ...prev,
+        [classItem.id]: true,
+      }));
       Alert.alert(
         "Enrolled Successfully!",
-        `You have enrolled in ${classItem.name}. The schedule has been added to your timetable.`,
+        `You have enrolled in ${classItem.name}.`,
       );
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to enroll.";
+      Alert.alert("Enrollment", msg);
     }
   };
 
-  const handleDownloadPaper = (title: string) => {
-    Alert.alert(
-      "Download Started",
-      `"${title}" is downloading. You can access it anytime offline in the Papers tab.`,
-    );
+  const handleDownloadPaper = async (fileUrl?: string | null) => {
+    if (!fileUrl) {
+      Alert.alert("Resource", "No download link attached to this resource.");
+      return;
+    }
+    try {
+      await Linking.openURL(fileUrl);
+    } catch {
+      Alert.alert("Resource", "Failed to open resource link.");
+    }
   };
 
   return (
@@ -321,6 +339,23 @@ export function TeacherProfileModal({
                   },
                 ]}
               >
+                {profile.undergradDegreeName ? (
+                  <View style={styles.qualItem}>
+                    <Text style={[styles.qualLabel, { color: palette.mutedText }]}>
+                      UNDERGRADUATE DEGREE
+                    </Text>
+                    <Text style={[styles.qualValue, { color: palette.text }]}>
+                      {profile.undergradDegreeName}
+                    </Text>
+                    {profile.universityName ? (
+                      <Text style={[styles.qualSub, { color: palette.mutedText }]}>
+                        {profile.universityName}
+                        {profile.facultyName ? ` • Faculty of ${profile.facultyName}` : ""}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
                 {profile.degreeName ? (
                   <View style={styles.qualItem}>
                     <Text style={[styles.qualLabel, { color: palette.mutedText }]}>
@@ -572,7 +607,7 @@ export function TeacherProfileModal({
                     </View>
 
                     <Pressable
-                      onPress={() => handleDownloadPaper(mat.title)}
+                      onPress={() => handleDownloadPaper(mat.fileUrl)}
                       style={[
                         styles.downloadBtn,
                         {
